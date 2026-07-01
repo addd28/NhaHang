@@ -28,11 +28,11 @@ public class ReservationScheduler {
     public void autoCancelReservation() {
         LocalDateTime now = LocalDateTime.now();
         List<Reservation> expiredBookings = reservationRepository.findExpiredBookingsForUpdate(now);
-        boolean anyCancelled = false;
 
         for (Reservation reservation : expiredBookings) {
-            reservation.setStatus(ReservationStatus.CANCELLED_NO_SHOW);
+            reservation.setStatus(ReservationStatus.NO_SHOW);
             RestaurantTable table = reservation.getTable();
+
             if (table != null) {
                 RestaurantTable lockedTable = tableRepository.findByIdForUpdate(table.getId()).orElse(null);
                 if (lockedTable != null && lockedTable.getStatus() == TableStatus.RESERVED) {
@@ -42,7 +42,5 @@ public class ReservationScheduler {
             }
             reservationRepository.save(reservation);
         }
-
-        tableService.promoteWaitlist();
     }
 }

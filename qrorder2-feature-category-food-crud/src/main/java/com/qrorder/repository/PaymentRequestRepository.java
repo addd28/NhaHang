@@ -11,20 +11,18 @@ public interface PaymentRequestRepository extends JpaRepository<PaymentRequest, 
 
     List<PaymentRequest> findByStatusOrderByRequestedAtDesc(PaymentRequestStatus status);
 
-    List<PaymentRequest> findByBranchIdAndStatusOrderByRequestedAtDesc(
-            Long branchId,
-            PaymentRequestStatus status
-    );
+    Optional<PaymentRequest> findBySessionIdAndStatus(Long sessionId, PaymentRequestStatus status);
 
-    Optional<PaymentRequest> findBySessionIdAndStatus(
-            Long sessionId,
-            PaymentRequestStatus status
-    );
-
-    boolean existsBySessionIdAndStatus(
-            Long sessionId,
-            PaymentRequestStatus status
-    );
+    boolean existsBySessionIdAndStatus(Long sessionId, PaymentRequestStatus status);
 
     Optional<PaymentRequest> findTopBySessionIdOrderByRequestedAtDesc(Long sessionId);
+
+    Optional<PaymentRequest> findByTransactionCode(String transactionCode);
+
+    boolean existsByTransactionCode(String transactionCode);
+
+    List<PaymentRequest> findByTransactionCodeContainingIgnoreCase(String query);
+
+    @org.springframework.data.jpa.repository.Query("SELECT MAX(p.transactionCode) FROM PaymentRequest p WHERE p.transactionCode LIKE :prefix")
+    String findMaxTransactionCodeByPrefix(@org.springframework.data.repository.query.Param("prefix") String prefix);
 }

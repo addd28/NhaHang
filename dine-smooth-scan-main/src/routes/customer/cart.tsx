@@ -15,6 +15,11 @@ export const Route = createFileRoute("/customer/cart")({
   component: CustomerCart,
 });
 
+const formatPrice = (val?: number | null) => {
+  if (val === null || val === undefined) return "0 đ";
+  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+};
+
 function CustomerCart() {
   const navigate = useNavigate();
   const { cart, updateQuantity, removeFromCart, clearCart, totals } = useCart();
@@ -131,7 +136,7 @@ function CustomerCart() {
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
-                        <p className="text-sm font-bold">${(c.unitPrice * c.quantity).toFixed(2)}</p>
+                        <p className="text-sm font-bold">{formatPrice(c.unitPrice * c.quantity)}</p>
                       </div>
                     </div>
                   </li>
@@ -163,19 +168,19 @@ function CustomerCart() {
             <div className="bg-card border border-border rounded-3xl p-5 shadow-soft space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tạm tính</span>
-                <span className="font-semibold">${totals.subtotal.toFixed(2)}</span>
+                <span className="font-semibold">{formatPrice(totals.subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Phí phục vụ (5%)</span>
-                <span className="font-semibold">${totals.service.toFixed(2)}</span>
+                <span className="font-semibold">{formatPrice(totals.service)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Thuế VAT (8%)</span>
-                <span className="font-semibold">${totals.tax.toFixed(2)}</span>
+                <span className="font-semibold">{formatPrice(totals.tax)}</span>
               </div>
               <div className="border-t border-border pt-3 flex items-baseline justify-between">
                 <p className="text-sm font-semibold">Tổng cộng</p>
-                <p className="font-display text-2xl font-bold text-primary">${totals.total.toFixed(2)}</p>
+                <p className="font-display text-2xl font-bold text-primary">{formatPrice(totals.total)}</p>
               </div>
             </div>
 

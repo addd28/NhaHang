@@ -16,10 +16,7 @@ public interface PaymentRequestService {
      */
     PaymentRequestResponse createRequest(Long sessionId, PaymentMethod method, boolean alreadyPaid);
 
-    /**
-     * Danh sách yêu cầu PENDING. Nếu branchId != null → lọc theo chi nhánh.
-     */
-    List<PaymentRequestResponse> getPendingRequests(Long branchId);
+    List<PaymentRequestResponse> getPendingRequests();
 
     /**
      * Cashier xác nhận đã nhận tiền → tạo Payment, đóng session, giải phóng bàn.
@@ -30,4 +27,10 @@ public interface PaymentRequestService {
      * Kiểm tra xem session đã có PENDING request chưa.
      */
     boolean hasPendingRequest(Long sessionId);
+
+    PaymentRequestResponse cancelRequest(Long requestId, Long cashierUserId);
+
+    java.util.Optional<PaymentRequestResponse> getActiveRequest(Long sessionId);
+
+    PaymentRequestResponse getRequest(Long id);
 }

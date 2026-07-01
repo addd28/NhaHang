@@ -1,10 +1,11 @@
 import axiosInstance from "./axiosInstance";
-import { RestaurantTable, ReservationResponse, AdminLookupResponse, AdminCheckInResponse } from "../types";
+import { RestaurantTable, ReservationResponse, AdminCheckInResponse } from "../types";
 
 export interface ReserveTableResponse {
   message: string;
   reservationId: number;
   confirmationCode: string;
+  reservationCode: string;
   tableNumber: number;
 }
 
@@ -18,18 +19,48 @@ export interface CheckInByCodeResponse {
   preOrderCount: number;
 }
 
+export interface WaitlistResponse {
+  reservationId: number;
+  customerName: string;
+  phoneNumber: string;
+  guestCount: number;
+  reservationTime: string;
+  waitingMinutes: number;
+}
+
+export interface ReservationDashboardStats {
+  bookedToday: number;
+  waitlistToday: number;
+  seatedToday: number;
+  noShowToday: number;
+  totalToday: number;
+  successRate: number;
+  chart7Days: Array<{
+    date: string;
+    booked: number;
+    waitlist: number;
+    seated: number;
+    noShow: number;
+  }>;
+  chart30Days: Array<{
+    date: string;
+    booked: number;
+    waitlist: number;
+    seated: number;
+    noShow: number;
+  }>;
+}
+
 export const tableApi = {
-  getTables: async (branchId?: number): Promise<RestaurantTable[]> => {
-    const response = await axiosInstance.get<RestaurantTable[]>("/tables", {
-      params: branchId ? { branchId } : {},
-    });
+  getTables: async (): Promise<RestaurantTable[]> => {
+    const response = await axiosInstance.get<RestaurantTable[]>("/tables");
     return response.data;
   },
-  createTable: async (request: { tableNumber: number; capacity: number; branchId: number }): Promise<string> => {
+  createTable: async (request: { tableNumber: number; capacity: number }): Promise<string> => {
     const response = await axiosInstance.post<string>("/tables", request);
     return response.data;
   },
-  updateTable: async (id: number, request: { tableNumber: number; capacity: number; branchId?: number }): Promise<{ message: string }> => {
+  updateTable: async (id: number, request: { tableNumber: number; capacity: number }): Promise<{ message: string }> => {
     const response = await axiosInstance.put<{ message: string }>(`/tables/${id}`, request);
     return response.data;
   },
@@ -49,31 +80,50 @@ export const tableApi = {
     const response = await axiosInstance.post<ReserveTableResponse>(`/tables/${tableId}/reserve`, request);
     return response.data;
   },
+  
+  // Public reservation slot booking
   reserveSlot: async (request: any): Promise<ReserveTableResponse> => {
     const response = await axiosInstance.post<ReserveTableResponse>("/reservations", request);
     return response.data;
   },
-  checkinByCode: async (confirmationCode: string): Promise<CheckInByCodeResponse> => {
-    const response = await axiosInstance.post<CheckInByCodeResponse>("/tables/checkin-by-code", { confirmationCode });
-    return response.data;
-  },
+
+  // Admin/Cashier/Waiter Reservation endpoints
   getReservations: async (): Promise<ReservationResponse[]> => {
-    const response = await axiosInstance.get<ReservationResponse[]>("/tables/reservations");
+    const response = await axiosInstance.get<ReservationResponse[]>("/reservations");
     return response.data;
   },
-  getWaitlist: async (): Promise<any[]> => {
-    const response = await axiosInstance.get<any[]>("/admin/reservations/waitlist");
+  getReservationById: async (id: number): Promise<ReservationResponse> => {
+    const response = await axiosInstance.get<ReservationResponse>(`/reservations/${id}`);
     return response.data;
   },
-  adminLookup: async (code: string): Promise<AdminLookupResponse> => {
-    const response = await axiosInstance.get<AdminLookupResponse>("/admin/reservations/lookup", {
-      params: { code }
+  searchReservations: async (q: string): Promise<ReservationResponse[]> => {
+    const response = await axiosInstance.get<ReservationResponse[]>("/reservations/search", {
+      params: { q }
     });
     return response.data;
   },
-  adminCheckIn: async (reservationCode: string): Promise<AdminCheckInResponse> => {
-    const response = await axiosInstance.post<AdminCheckInResponse>("/admin/reservations/check-in", { reservationCode });
+  checkInReservation: async (id: number, tableId: number): Promise<AdminCheckInResponse> => {
+    const response = await axiosInstance.post<AdminCheckInResponse>(`/reservations/checkin/${id}`, null, {
+      params: { tableId }
+    });
+    return response.data;
+  },
+  getOccupancy: async (dateTime: string): Promise<{ status: "PLENTY" | "NEAR_FULL" | "CROWDED"; message: string; count: number; totalTables: number }> => {
+    const response = await axiosInstance.get<{ status: "PLENTY" | "NEAR_FULL" | "CROWDED"; message: string; count: number; totalTables: number }>("/reservations/occupancy", {
+      params: { dateTime }
+    });
+    return response.data;
+  },
+  cancelReservation: async (id: number): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosInstance.post<{ success: boolean; message: string }>(`/reservations/cancel/${id}`);
+    return response.data;
+  },
+  getHistory: async (): Promise<ReservationResponse[]> => {
+    const response = await axiosInstance.get<ReservationResponse[]>("/reservations/history");
+    return response.data;
+  },
+  getDashboardStats: async (): Promise<ReservationDashboardStats> => {
+    const response = await axiosInstance.get<ReservationDashboardStats>("/reservations/dashboard-stats");
     return response.data;
   },
 };
-

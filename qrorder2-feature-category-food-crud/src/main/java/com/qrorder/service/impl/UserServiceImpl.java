@@ -4,9 +4,7 @@ import com.qrorder.dto.user.request.CreateUserRequest;
 import com.qrorder.dto.user.request.UpdateUserRequest;
 import com.qrorder.dto.user.response.UserResponse;
 import com.qrorder.entity.User;
-import com.qrorder.entity.Branch;
 import com.qrorder.repository.UserRepository;
-import com.qrorder.repository.BranchRepository;
 import com.qrorder.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,7 +19,6 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final BranchRepository branchRepository;
 
     @Override
     public List<UserResponse> getAllUsers() {
@@ -36,17 +33,10 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Username already exists");
         }
 
-        Branch branch = null;
-        if (request.getBranchId() != null) {
-            branch = branchRepository.findById(request.getBranchId())
-                    .orElseThrow(() -> new RuntimeException("Branch not found"));
-        }
-
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
-                .branch(branch)
                 .build();
 
         userRepository.save(user);
@@ -63,17 +53,9 @@ public class UserServiceImpl implements UserService {
             }
         });
 
-        Branch branch = null;
-        if (request.getBranchId() != null) {
-            branch = branchRepository.findById(request.getBranchId())
-                    .orElseThrow(() -> new RuntimeException("Branch not found"));
-        }
-
         user.setUsername(request.getUsername());
         user.setRole(request.getRole());
-        user.setBranch(branch);
 
-        // Update password only if provided
         if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
@@ -93,8 +75,6 @@ public class UserServiceImpl implements UserService {
                 .id(user.getId())
                 .username(user.getUsername())
                 .role(user.getRole())
-                .branchId(user.getBranch() != null ? user.getBranch().getId() : null)
-                .branchName(user.getBranch() != null ? user.getBranch().getName() : null)
                 .build();
     }
 }

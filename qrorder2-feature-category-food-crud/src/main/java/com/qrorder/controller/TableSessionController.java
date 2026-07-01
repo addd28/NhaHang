@@ -24,7 +24,7 @@ public class TableSessionController {
      * Waiter / Admin mở bàn walk-in.
      * KHÔNG cho CUSTOMER gọi endpoint này.
      */
-    @PreAuthorize("hasAnyRole('ADMIN', 'BRANCH_MANAGER', 'WAITER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAITER')")
     @PostMapping("/open/{tableId}")
     public Map<String, Object> openSession(
             @PathVariable Long tableId

@@ -15,8 +15,6 @@ import java.time.LocalDateTime;
 @Builder
 public class ReservationResponse {
     private Long id;
-    private Long branchId;
-    private String branchName;
     private String customerName;
     private String phone;
     private String confirmationCode;

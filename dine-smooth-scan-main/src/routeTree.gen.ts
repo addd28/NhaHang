@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PostsRouteImport } from './routes/posts'
+import { Route as MenuRouteImport } from './routes/menu'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -21,21 +22,25 @@ import { Route as CustomerMenuRouteImport } from './routes/customer/menu'
 import { Route as CustomerCartRouteImport } from './routes/customer/cart'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTablesRouteImport } from './routes/admin/tables'
-import { Route as AdminProvincesRouteImport } from './routes/admin/provinces'
+import { Route as AdminReservationsRouteImport } from './routes/admin/reservations'
 import { Route as AdminPostsRouteImport } from './routes/admin/posts'
+import { Route as AdminPaymentsHistoryRouteImport } from './routes/admin/payments-history'
 import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminMenuManagementRouteImport } from './routes/admin/menu-management'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminKitchenRouteImport } from './routes/admin/kitchen'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
-import { Route as AdminCheckinRouteImport } from './routes/admin/checkin'
 import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
-import { Route as AdminBranchesRouteImport } from './routes/admin/branches'
 
 const PostsRoute = PostsRouteImport.update({
   id: '/posts',
   path: '/posts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MenuRoute = MenuRouteImport.update({
+  id: '/menu',
+  path: '/menu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -93,14 +98,19 @@ const AdminTablesRoute = AdminTablesRouteImport.update({
   path: '/admin/tables',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminProvincesRoute = AdminProvincesRouteImport.update({
-  id: '/admin/provinces',
-  path: '/admin/provinces',
+const AdminReservationsRoute = AdminReservationsRouteImport.update({
+  id: '/admin/reservations',
+  path: '/admin/reservations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPostsRoute = AdminPostsRouteImport.update({
   id: '/admin/posts',
   path: '/admin/posts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPaymentsHistoryRoute = AdminPaymentsHistoryRouteImport.update({
+  id: '/admin/payments-history',
+  path: '/admin/payments-history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
@@ -133,19 +143,9 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminCheckinRoute = AdminCheckinRouteImport.update({
-  id: '/admin/checkin',
-  path: '/admin/checkin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   id: '/admin/categories',
   path: '/admin/categories',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminBranchesRoute = AdminBranchesRouteImport.update({
-  id: '/admin/branches',
-  path: '/admin/branches',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -153,18 +153,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
+  '/menu': typeof MenuRoute
   '/posts': typeof PostsRoute
-  '/admin/branches': typeof AdminBranchesRoute
   '/admin/categories': typeof AdminCategoriesRoute
-  '/admin/checkin': typeof AdminCheckinRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kitchen': typeof AdminKitchenRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/menu-management': typeof AdminMenuManagementRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/payments-history': typeof AdminPaymentsHistoryRoute
   '/admin/posts': typeof AdminPostsRoute
-  '/admin/provinces': typeof AdminProvincesRoute
+  '/admin/reservations': typeof AdminReservationsRoute
   '/admin/tables': typeof AdminTablesRoute
   '/admin/users': typeof AdminUsersRoute
   '/customer/cart': typeof CustomerCartRoute
@@ -178,18 +178,18 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
+  '/menu': typeof MenuRoute
   '/posts': typeof PostsRoute
-  '/admin/branches': typeof AdminBranchesRoute
   '/admin/categories': typeof AdminCategoriesRoute
-  '/admin/checkin': typeof AdminCheckinRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kitchen': typeof AdminKitchenRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/menu-management': typeof AdminMenuManagementRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/payments-history': typeof AdminPaymentsHistoryRoute
   '/admin/posts': typeof AdminPostsRoute
-  '/admin/provinces': typeof AdminProvincesRoute
+  '/admin/reservations': typeof AdminReservationsRoute
   '/admin/tables': typeof AdminTablesRoute
   '/admin/users': typeof AdminUsersRoute
   '/customer/cart': typeof CustomerCartRoute
@@ -204,18 +204,18 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
+  '/menu': typeof MenuRoute
   '/posts': typeof PostsRoute
-  '/admin/branches': typeof AdminBranchesRoute
   '/admin/categories': typeof AdminCategoriesRoute
-  '/admin/checkin': typeof AdminCheckinRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kitchen': typeof AdminKitchenRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/menu-management': typeof AdminMenuManagementRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/payments-history': typeof AdminPaymentsHistoryRoute
   '/admin/posts': typeof AdminPostsRoute
-  '/admin/provinces': typeof AdminProvincesRoute
+  '/admin/reservations': typeof AdminReservationsRoute
   '/admin/tables': typeof AdminTablesRoute
   '/admin/users': typeof AdminUsersRoute
   '/customer/cart': typeof CustomerCartRoute
@@ -231,18 +231,18 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/contact'
+    | '/menu'
     | '/posts'
-    | '/admin/branches'
     | '/admin/categories'
-    | '/admin/checkin'
     | '/admin/dashboard'
     | '/admin/kitchen'
     | '/admin/login'
     | '/admin/menu-management'
     | '/admin/orders'
     | '/admin/payments'
+    | '/admin/payments-history'
     | '/admin/posts'
-    | '/admin/provinces'
+    | '/admin/reservations'
     | '/admin/tables'
     | '/admin/users'
     | '/customer/cart'
@@ -256,18 +256,18 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/contact'
+    | '/menu'
     | '/posts'
-    | '/admin/branches'
     | '/admin/categories'
-    | '/admin/checkin'
     | '/admin/dashboard'
     | '/admin/kitchen'
     | '/admin/login'
     | '/admin/menu-management'
     | '/admin/orders'
     | '/admin/payments'
+    | '/admin/payments-history'
     | '/admin/posts'
-    | '/admin/provinces'
+    | '/admin/reservations'
     | '/admin/tables'
     | '/admin/users'
     | '/customer/cart'
@@ -281,18 +281,18 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/contact'
+    | '/menu'
     | '/posts'
-    | '/admin/branches'
     | '/admin/categories'
-    | '/admin/checkin'
     | '/admin/dashboard'
     | '/admin/kitchen'
     | '/admin/login'
     | '/admin/menu-management'
     | '/admin/orders'
     | '/admin/payments'
+    | '/admin/payments-history'
     | '/admin/posts'
-    | '/admin/provinces'
+    | '/admin/reservations'
     | '/admin/tables'
     | '/admin/users'
     | '/customer/cart'
@@ -307,18 +307,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
+  MenuRoute: typeof MenuRoute
   PostsRoute: typeof PostsRoute
-  AdminBranchesRoute: typeof AdminBranchesRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
-  AdminCheckinRoute: typeof AdminCheckinRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminKitchenRoute: typeof AdminKitchenRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMenuManagementRoute: typeof AdminMenuManagementRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
+  AdminPaymentsHistoryRoute: typeof AdminPaymentsHistoryRoute
   AdminPostsRoute: typeof AdminPostsRoute
-  AdminProvincesRoute: typeof AdminProvincesRoute
+  AdminReservationsRoute: typeof AdminReservationsRoute
   AdminTablesRoute: typeof AdminTablesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   CustomerCartRoute: typeof CustomerCartRoute
@@ -336,6 +336,13 @@ declare module '@tanstack/react-router' {
       path: '/posts'
       fullPath: '/posts'
       preLoaderRoute: typeof PostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/menu': {
+      id: '/menu'
+      path: '/menu'
+      fullPath: '/menu'
+      preLoaderRoute: typeof MenuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -415,11 +422,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTablesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/provinces': {
-      id: '/admin/provinces'
-      path: '/admin/provinces'
-      fullPath: '/admin/provinces'
-      preLoaderRoute: typeof AdminProvincesRouteImport
+    '/admin/reservations': {
+      id: '/admin/reservations'
+      path: '/admin/reservations'
+      fullPath: '/admin/reservations'
+      preLoaderRoute: typeof AdminReservationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/posts': {
@@ -427,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/posts'
       fullPath: '/admin/posts'
       preLoaderRoute: typeof AdminPostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/payments-history': {
+      id: '/admin/payments-history'
+      path: '/admin/payments-history'
+      fullPath: '/admin/payments-history'
+      preLoaderRoute: typeof AdminPaymentsHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/payments': {
@@ -471,25 +485,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/checkin': {
-      id: '/admin/checkin'
-      path: '/admin/checkin'
-      fullPath: '/admin/checkin'
-      preLoaderRoute: typeof AdminCheckinRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin/categories': {
       id: '/admin/categories'
       path: '/admin/categories'
       fullPath: '/admin/categories'
       preLoaderRoute: typeof AdminCategoriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/branches': {
-      id: '/admin/branches'
-      path: '/admin/branches'
-      fullPath: '/admin/branches'
-      preLoaderRoute: typeof AdminBranchesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -499,18 +499,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
+  MenuRoute: MenuRoute,
   PostsRoute: PostsRoute,
-  AdminBranchesRoute: AdminBranchesRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
-  AdminCheckinRoute: AdminCheckinRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminKitchenRoute: AdminKitchenRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMenuManagementRoute: AdminMenuManagementRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
+  AdminPaymentsHistoryRoute: AdminPaymentsHistoryRoute,
   AdminPostsRoute: AdminPostsRoute,
-  AdminProvincesRoute: AdminProvincesRoute,
+  AdminReservationsRoute: AdminReservationsRoute,
   AdminTablesRoute: AdminTablesRoute,
   AdminUsersRoute: AdminUsersRoute,
   CustomerCartRoute: CustomerCartRoute,

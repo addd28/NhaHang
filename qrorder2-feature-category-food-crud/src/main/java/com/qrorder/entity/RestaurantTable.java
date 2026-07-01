@@ -9,7 +9,7 @@ import lombok.*;
 
 @Entity
 @Table(name = "restaurant_tables", uniqueConstraints = {
-    @UniqueConstraint(name = "uq_table_branch", columnNames = {"table_number", "branch_id"})
+    @UniqueConstraint(name = "uq_table_number", columnNames = {"table_number"})
 })
 @Getter
 @Setter
@@ -47,8 +47,4 @@ public class RestaurantTable {
 
     @Column(nullable = false)
     private Integer capacity;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = false)
-    private Branch branch;
 }

@@ -93,8 +93,6 @@ public class TableSessionServiceImpl
 
                         .table(table)
 
-                        .branch(table.getBranch())
-
                         .startTime(now)
 
                         .status(

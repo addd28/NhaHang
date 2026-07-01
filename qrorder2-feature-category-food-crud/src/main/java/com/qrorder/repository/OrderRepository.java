@@ -11,7 +11,5 @@ public interface OrderRepository
 
     List<Order> findByReservationId(Long reservationId);
 
-    long countByBranchId(Long branchId);
-
-    long countByBranchIdAndCreatedAtBetween(Long branchId, java.time.LocalDateTime start, java.time.LocalDateTime end);
+    List<Order> findByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
 }

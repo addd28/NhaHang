@@ -2,10 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tableApi } from "@/api/tableApi";
-import { provinceApi } from "@/api/provinceApi";
-import { branchApi } from "@/api/branchApi";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Calendar as CalendarIcon, MapPin, Users, Building2, Globe, MessageSquare, Clock } from "lucide-react";
+import { ChevronLeft, Calendar as CalendarIcon, Users, MessageSquare, Clock } from "lucide-react";
 import { toast } from "sonner";
 import backdropImage from "../../assets/restaurant-backdrop.png";
 
@@ -31,8 +29,7 @@ function TableReservationPage() {
   }, []);
 
   // Form states
-  const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
-  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+
   const [guestCount, setGuestCount] = useState<number>(2);
   const [date, setDate] = useState("");
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
@@ -49,47 +46,10 @@ function TableReservationPage() {
     status: string;
   } | null>(null);
 
-  // Fetch provinces
-  const { data: provinces = [] } = useQuery({
-    queryKey: ["provinces"],
-    queryFn: () => provinceApi.getProvinces(),
-  });
-
-  // Fetch branches
-  const { data: branches = [] } = useQuery({
-    queryKey: ["branches"],
-    queryFn: () => branchApi.getBranches(),
-  });
-
-  // Set default province when they are loaded
-  useEffect(() => {
-    if (provinces.length > 0 && selectedProvinceId === null) {
-      setSelectedProvinceId(provinces[0].id);
-    }
-  }, [provinces, selectedProvinceId]);
-
-  // Filter branches by selected province
-  const filteredBranches = useMemo(() => {
-    if (selectedProvinceId === null) return [];
-    return branches.filter((b) => b.provinceId === selectedProvinceId);
-  }, [branches, selectedProvinceId]);
-
-  // Set default branch when filtered branches change
-  useEffect(() => {
-    if (filteredBranches.length > 0) {
-      if (!filteredBranches.some((b) => b.id === selectedBranchId)) {
-        setSelectedBranchId(filteredBranches[0].id);
-      }
-    } else {
-      setSelectedBranchId(null);
-    }
-  }, [filteredBranches, selectedBranchId]);
-
   // Fetch tables to find a matching empty table
   const { data: tables = [], isLoading: tablesLoading } = useQuery({
-    queryKey: ["reserveTables", selectedBranchId],
-    queryFn: () => tableApi.getTables(selectedBranchId || undefined),
-    enabled: selectedBranchId !== null,
+    queryKey: ["reserveTables"],
+    queryFn: () => tableApi.getTables(),
     refetchInterval: 5000,
   });
 
@@ -109,7 +69,6 @@ function TableReservationPage() {
       guestCount: number;
       reservationTime: string;
       note: string;
-      branchId: number;
     }) => {
       return tableApi.reserveSlot({
         customerName: req.customerName,
@@ -117,7 +76,6 @@ function TableReservationPage() {
         guestCount: req.guestCount,
         reservationTime: req.reservationTime,
         note: req.note,
-        branchId: req.branchId,
       });
     },
     onSuccess: (data: any) => {
@@ -138,10 +96,6 @@ function TableReservationPage() {
   });
 
   const handleBookTableOnly = () => {
-    if (!selectedBranchId) {
-      toast.error("Vui lòng chọn chi nhánh!");
-      return;
-    }
     if (!date) {
       toast.error("Vui lòng chọn ngày đặt bàn!");
       return;
@@ -165,7 +119,6 @@ function TableReservationPage() {
       guestCount,
       reservationTime: reservationTimeStr,
       note: note || "Đặt bàn thông thường",
-      branchId: selectedBranchId,
     });
   };
 
@@ -265,54 +218,11 @@ function TableReservationPage() {
           {/* Country flag selector */}
           <div className="flex items-center gap-1.5 border border-gray-200 rounded-full px-3 py-1 bg-gray-50 text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors">
             <span className="text-base">🇻🇳</span>
-            <Globe className="h-3 w-3 text-gray-500" />
           </div>
         </div>
 
         {/* Form Grid */}
         <div className="space-y-4">
-          
-          {/* Row 1: City & Branch */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="h-3 w-3" /> Tỉnh/Thành
-              </label>
-              <select
-                value={selectedProvinceId || ""}
-                onChange={(e) => {
-                  const val = e.target.value ? Number(e.target.value) : null;
-                  setSelectedProvinceId(val);
-                }}
-                className="w-full h-12 px-3 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 font-medium focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none"
-              >
-                <option value="">Chọn Tỉnh/Thành</option>
-                {provinces.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                <Building2 className="h-3 w-3" /> Chi nhánh
-              </label>
-              <select
-                value={selectedBranchId || ""}
-                onChange={(e) => {
-                  const val = e.target.value ? Number(e.target.value) : null;
-                  setSelectedBranchId(val);
-                }}
-                className="w-full h-12 px-3 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 font-medium focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none"
-                disabled={!selectedProvinceId}
-              >
-                <option value="">Chọn Chi nhánh</option>
-                {filteredBranches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
           {/* Row 2: Guests, Date & Time Slot */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

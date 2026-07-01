@@ -23,7 +23,7 @@ public class TableController {
 
     private final TableService tableService;
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'BRANCH_MANAGER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public String createTable(
             @Valid
@@ -33,7 +33,7 @@ public class TableController {
         return "Create table success";
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'BRANCH_MANAGER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{tableId}")
     public Map<String, String> updateTable(
             @PathVariable Long tableId,
@@ -47,7 +47,7 @@ public class TableController {
         );
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'BRANCH_MANAGER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{tableId}")
     public Map<String, String> deleteTable(
             @PathVariable Long tableId
@@ -76,7 +76,7 @@ public class TableController {
         return ResponseEntity.ok(result);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'BRANCH_MANAGER', 'WAITER', 'CASHIER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAITER', 'CASHIER')")
     @GetMapping("/reservations")
     public List<com.qrorder.dto.table.response.ReservationResponse> getReservations() {
         return tableService.getReservations();
@@ -102,8 +102,8 @@ public class TableController {
     }
 
     @GetMapping
-    public List<TableResponse> getTables(@RequestParam(required = false) Long branchId) {
-        return tableService.getTables(branchId);
+    public List<TableResponse> getTables() {
+        return tableService.getTables();
     }
 
     @PostMapping("/{tableId}/checkin")
@@ -132,7 +132,7 @@ public class TableController {
         }
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'BRANCH_MANAGER', 'CASHIER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CASHIER')")
     @PutMapping("/{tableId}/reset")
     public String resetTable(@PathVariable Long tableId) {
         tableService.resetTable(tableId);

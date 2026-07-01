@@ -1,34 +1,15 @@
 package com.qrorder.config;
 
-import com.qrorder.entity.Category;
-import com.qrorder.entity.MenuItem;
-import com.qrorder.entity.OptionGroup;
-import com.qrorder.entity.ItemOption;
-import com.qrorder.entity.RestaurantTable;
-import com.qrorder.entity.enums.MenuItemType;
-import com.qrorder.entity.enums.TableStatus;
-import com.qrorder.entity.enums.OptionGroupType;
-import com.qrorder.entity.enums.SelectionType;
-import com.qrorder.entity.User;
-import com.qrorder.entity.enums.Role;
-import com.qrorder.entity.Branch;
-import com.qrorder.entity.Province;
-import com.qrorder.entity.Reservation;
-import com.qrorder.repository.CategoryRepository;
-import com.qrorder.repository.MenuItemRepository;
-import com.qrorder.repository.OptionGroupRepository;
-import com.qrorder.repository.ItemOptionRepository;
-import com.qrorder.repository.RestaurantTableRepository;
-import com.qrorder.repository.UserRepository;
-import com.qrorder.repository.BranchRepository;
-import com.qrorder.repository.ProvinceRepository;
-import com.qrorder.repository.ReservationRepository;
+import com.qrorder.entity.*;
+import com.qrorder.entity.enums.*;
+import com.qrorder.repository.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -42,9 +23,9 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final RestaurantTableRepository tableRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final BranchRepository branchRepository;
-    private final ProvinceRepository provinceRepository;
     private final ReservationRepository reservationRepository;
+    private final TableSessionRepository tableSessionRepository;
+    private final PaymentRepository paymentRepository;
 
     @Override
     @Transactional
@@ -55,69 +36,33 @@ public class DatabaseSeeder implements CommandLineRunner {
         seedUser("waiter", Role.WAITER);
         seedUser("cashier", Role.CASHIER);
 
-        // Seed default Province & Branch if empty
-        Province defaultProvince;
-        if (provinceRepository.count() == 0) {
-            defaultProvince = Province.builder()
-                    .name("Hồ Chí Minh")
-                    .build();
-            defaultProvince = provinceRepository.save(defaultProvince);
-        } else {
-            defaultProvince = provinceRepository.findAll().get(0);
-        }
-
-        Branch defaultBranch;
-        if (branchRepository.count() == 0) {
-            defaultBranch = Branch.builder()
-                    .name("Chi nhánh Quận 1")
-                    .address("123 Nguyễn Huệ, Quận 1")
-                    .phone("0901234567")
-                    .province(defaultProvince)
-                    .build();
-            defaultBranch = branchRepository.save(defaultBranch);
-        } else {
-            defaultBranch = branchRepository.findAll().get(0);
-        }
-
-        // Link any existing tables without branch to defaultBranch
-        List<RestaurantTable> orphanedTables = tableRepository.findAll().stream()
-                .filter(t -> t.getBranch() == null)
-                .toList();
-        if (!orphanedTables.isEmpty()) {
-            final Branch branchToSet = defaultBranch;
-            orphanedTables.forEach(t -> t.setBranch(branchToSet));
-            tableRepository.saveAll(orphanedTables);
-        }
-
-        // Seed Table 8 if not exists in the default branch
-        if (!tableRepository.existsByTableNumberAndBranchId(8, defaultBranch.getId())) {
+        // Seed Table 8 if not exists
+        if (!tableRepository.existsByTableNumber(8)) {
             RestaurantTable table8 = RestaurantTable.builder()
                     .tableNumber(8)
                     .capacity(4)
                     .qrToken("table-8-token")
                     .tableKey("TB8X92K")
                     .status(TableStatus.EMPTY)
-                    .branch(defaultBranch)
                     .build();
             tableRepository.save(table8);
         }
 
-        // Seed other tables for convenience (e.g. 1 to 5) in the default branch
+        // Seed tables 1-5 if not exists
         for (int i = 1; i <= 5; i++) {
-            if (!tableRepository.existsByTableNumberAndBranchId(i, defaultBranch.getId())) {
+            if (!tableRepository.existsByTableNumber(i)) {
                 RestaurantTable table = RestaurantTable.builder()
                         .tableNumber(i)
                         .capacity(4)
                         .qrToken("table-" + i + "-token")
                         .tableKey("TB" + i + "X92K")
                         .status(TableStatus.EMPTY)
-                        .branch(defaultBranch)
                         .build();
-                 tableRepository.save(table);
+                tableRepository.save(table);
             }
         }
 
-        // Migration/Repair: check if any existing tables lack tableKey and seed them
+        // Migration/Repair: seed tableKey for any table missing it
         List<RestaurantTable> allTables = tableRepository.findAll();
         for (RestaurantTable t : allTables) {
             if (t.getTableKey() == null || t.getTableKey().isBlank()) {
@@ -164,7 +109,6 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .build();
             pizza1 = menuItemRepository.save(pizza1);
 
-            // Option Group: Size (SINGLE, REQUIRED)
             OptionGroup sizeGroup = OptionGroup.builder()
                     .name("Size")
                     .type(OptionGroupType.SIZE)
@@ -183,7 +127,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             itemOptionRepository.save(ItemOption.builder().optionGroup(sizeGroup).optionCode("SIZE_M").name("Medium").price(3.0).displayOrder(2).available(true).deleted(false).build());
             itemOptionRepository.save(ItemOption.builder().optionGroup(sizeGroup).optionCode("SIZE_L").name("Large").price(5.0).displayOrder(3).available(true).deleted(false).build());
 
-            // Option Group: Toppings (MULTIPLE, OPTIONAL, MAX 3)
             OptionGroup toppingsGroup = OptionGroup.builder()
                     .name("Toppings")
                     .type(OptionGroupType.TOPPING)
@@ -203,190 +146,83 @@ public class DatabaseSeeder implements CommandLineRunner {
             itemOptionRepository.save(ItemOption.builder().optionGroup(toppingsGroup).optionCode("TOPPING_MUSHROOM").name("Mushroom").price(1.5).displayOrder(3).available(true).deleted(false).build());
 
             // Truffle Funghi
-            MenuItem pizza2 = MenuItem.builder()
-                    .name("Truffle Funghi")
-                    .price(22.0)
+            menuItemRepository.save(MenuItem.builder().name("Truffle Funghi").price(22.0)
                     .description("Wild mushrooms, mozzarella, black truffle oil, thyme.")
-                    .imageUrl("pizza")
-                    .available(true)
-                    .type(MenuItemType.KITCHEN)
-                    .category(pizzaCat)
-                    .build();
-            menuItemRepository.save(pizza2);
+                    .imageUrl("pizza").available(true).type(MenuItemType.KITCHEN).category(pizzaCat).build());
 
-            // Burger
-            MenuItem burger1 = MenuItem.builder()
-                    .name("Wagyu Smash")
-                    .price(24.0)
+            // Burgers
+            menuItemRepository.save(MenuItem.builder().name("Wagyu Smash").price(24.0)
                     .description("Double wagyu patty, aged cheddar, caramelized onion, brioche.")
-                    .imageUrl("burger")
-                    .available(true)
-                    .type(MenuItemType.KITCHEN)
-                    .category(burgerCat)
-                    .build();
-            menuItemRepository.save(burger1);
-
-            MenuItem burger2 = MenuItem.builder()
-                    .name("Smoky BBQ Stack")
-                    .price(21.0)
+                    .imageUrl("burger").available(true).type(MenuItemType.KITCHEN).category(burgerCat).build());
+            menuItemRepository.save(MenuItem.builder().name("Smoky BBQ Stack").price(21.0)
                     .description("Bacon, smoked gouda, crispy onions, bourbon BBQ glaze.")
-                    .imageUrl("burger")
-                    .available(true)
-                    .type(MenuItemType.KITCHEN)
-                    .category(burgerCat)
-                    .build();
-            menuItemRepository.save(burger2);
+                    .imageUrl("burger").available(true).type(MenuItemType.KITCHEN).category(burgerCat).build());
 
             // Drinks
-            MenuItem drink1 = MenuItem.builder()
-                    .name("Garden Mojito")
-                    .price(12.0)
+            MenuItem drink1 = MenuItem.builder().name("Garden Mojito").price(12.0)
                     .description("White rum, fresh mint, lime, cane sugar, sparkling water.")
-                    .imageUrl("drink")
-                    .available(true)
-                    .type(MenuItemType.INSTANT)
-                    .category(drinksCat)
-                    .build();
+                    .imageUrl("drink").available(true).type(MenuItemType.INSTANT).category(drinksCat).build();
             drink1 = menuItemRepository.save(drink1);
 
-            OptionGroup drinkCustom = OptionGroup.builder()
-                    .name("Customizations")
-                    .type(OptionGroupType.CUSTOM)
-                    .selectionType(SelectionType.MULTIPLE)
-                    .required(false)
-                    .minSelect(0)
-                    .maxSelect(2)
-                    .displayOrder(1)
-                    .available(true)
-                    .deleted(false)
-                    .menuItem(drink1)
-                    .build();
+            OptionGroup drinkCustom = OptionGroup.builder().name("Customizations").type(OptionGroupType.CUSTOM)
+                    .selectionType(SelectionType.MULTIPLE).required(false).minSelect(0).maxSelect(2)
+                    .displayOrder(1).available(true).deleted(false).menuItem(drink1).build();
             drinkCustom = optionGroupRepository.save(drinkCustom);
-
             itemOptionRepository.save(ItemOption.builder().optionGroup(drinkCustom).optionCode("ADDON_EXTRA_MINT").name("Extra Mint").price(0.5).displayOrder(1).available(true).deleted(false).build());
             itemOptionRepository.save(ItemOption.builder().optionGroup(drinkCustom).optionCode("ADDON_EXTRA_LIME").name("Extra Lime").price(0.5).displayOrder(2).available(true).deleted(false).build());
 
-            MenuItem drink2 = MenuItem.builder()
-                    .name("Yuzu Spritz")
-                    .price(14.0)
+            menuItemRepository.save(MenuItem.builder().name("Yuzu Spritz").price(14.0)
                     .description("Prosecco, yuzu, elderflower, soda, fresh citrus.")
-                    .imageUrl("drink")
-                    .available(false)
-                    .type(MenuItemType.INSTANT)
-                    .category(drinksCat)
-                    .build();
-            menuItemRepository.save(drink2);
+                    .imageUrl("drink").available(false).type(MenuItemType.INSTANT).category(drinksCat).build());
 
             // Coffee
-            MenuItem coffee1 = MenuItem.builder()
-                    .name("Velvet Latte")
-                    .price(6.0)
+            MenuItem coffee1 = MenuItem.builder().name("Velvet Latte").price(6.0)
                     .description("Double shot espresso, silky steamed milk, light foam art.")
-                    .imageUrl("coffee")
-                    .available(true)
-                    .type(MenuItemType.INSTANT)
-                    .category(coffeeCat)
-                    .build();
+                    .imageUrl("coffee").available(true).type(MenuItemType.INSTANT).category(coffeeCat).build();
             coffee1 = menuItemRepository.save(coffee1);
 
-            OptionGroup coffeeCustom = OptionGroup.builder()
-                    .name("Customizations")
-                    .type(OptionGroupType.CUSTOM)
-                    .selectionType(SelectionType.MULTIPLE)
-                    .required(false)
-                    .minSelect(0)
-                    .maxSelect(2)
-                    .displayOrder(1)
-                    .available(true)
-                    .deleted(false)
-                    .menuItem(coffee1)
-                    .build();
+            OptionGroup coffeeCustom = OptionGroup.builder().name("Customizations").type(OptionGroupType.CUSTOM)
+                    .selectionType(SelectionType.MULTIPLE).required(false).minSelect(0).maxSelect(2)
+                    .displayOrder(1).available(true).deleted(false).menuItem(coffee1).build();
             coffeeCustom = optionGroupRepository.save(coffeeCustom);
-
             itemOptionRepository.save(ItemOption.builder().optionGroup(coffeeCustom).optionCode("ADDON_OAT_MILK").name("Oat Milk").price(1.0).displayOrder(1).available(true).deleted(false).build());
             itemOptionRepository.save(ItemOption.builder().optionGroup(coffeeCustom).optionCode("ADDON_EXTRA_SHOT").name("Extra Espresso Shot").price(1.5).displayOrder(2).available(true).deleted(false).build());
 
-            MenuItem coffee2 = MenuItem.builder()
-                    .name("Iced Mocha Noir")
-                    .price(7.0)
+            menuItemRepository.save(MenuItem.builder().name("Iced Mocha Noir").price(7.0)
                     .description("Cold brew, dark chocolate, oat milk, vanilla.")
-                    .imageUrl("coffee")
-                    .available(true)
-                    .type(MenuItemType.INSTANT)
-                    .category(coffeeCat)
-                    .build();
-            menuItemRepository.save(coffee2);
+                    .imageUrl("coffee").available(true).type(MenuItemType.INSTANT).category(coffeeCat).build());
 
-            // Dessert
-            MenuItem dessert1 = MenuItem.builder()
-                    .name("Molten Chocolate")
-                    .price(11.0)
+            // Desserts
+            menuItemRepository.save(MenuItem.builder().name("Molten Chocolate").price(11.0)
                     .description("Warm chocolate fondant, vanilla bean ice cream, fresh berries.")
-                    .imageUrl("dessert")
-                    .available(true)
-                    .type(MenuItemType.KITCHEN)
-                    .category(dessertCat)
-                    .build();
-            menuItemRepository.save(dessert1);
-
-            MenuItem dessert2 = MenuItem.builder()
-                    .name("Tiramisu Classico")
-                    .price(10.0)
+                    .imageUrl("dessert").available(true).type(MenuItemType.KITCHEN).category(dessertCat).build());
+            menuItemRepository.save(MenuItem.builder().name("Tiramisu Classico").price(10.0)
                     .description("Espresso-soaked savoiardi, cocoa dust.")
-                    .imageUrl("dessert")
-                    .available(true)
-                    .type(MenuItemType.KITCHEN)
-                    .category(dessertCat)
-                    .build();
-            menuItemRepository.save(dessert2);
+                    .imageUrl("dessert").available(true).type(MenuItemType.KITCHEN).category(dessertCat).build());
 
-            // Special - Wagyu Tenderloin
-            MenuItem special1 = MenuItem.builder()
-                    .name("Wagyu Tenderloin")
-                    .price(58.0)
+            // Specials
+            MenuItem special1 = MenuItem.builder().name("Wagyu Tenderloin").price(58.0)
                     .description("Grade A5 wagyu, herb butter, charred asparagus, truffle mash.")
-                    .imageUrl("special")
-                    .available(true)
-                    .type(MenuItemType.KITCHEN)
-                    .category(specialCat)
-                    .build();
+                    .imageUrl("special").available(true).type(MenuItemType.KITCHEN).category(specialCat).build();
             special1 = menuItemRepository.save(special1);
 
-            // Option Group: Cooking Level (SINGLE, REQUIRED)
-            OptionGroup cookingGroup = OptionGroup.builder()
-                    .name("Cooking Level")
-                    .type(OptionGroupType.COOKING_LEVEL)
-                    .selectionType(SelectionType.SINGLE)
-                    .required(true)
-                    .minSelect(1)
-                    .maxSelect(1)
-                    .displayOrder(1)
-                    .available(true)
-                    .deleted(false)
-                    .menuItem(special1)
-                    .build();
+            OptionGroup cookingGroup = OptionGroup.builder().name("Cooking Level").type(OptionGroupType.COOKING_LEVEL)
+                    .selectionType(SelectionType.SINGLE).required(true).minSelect(1).maxSelect(1)
+                    .displayOrder(1).available(true).deleted(false).menuItem(special1).build();
             cookingGroup = optionGroupRepository.save(cookingGroup);
-
             itemOptionRepository.save(ItemOption.builder().optionGroup(cookingGroup).optionCode("COOK_RARE").name("Rare").price(0.0).displayOrder(1).available(true).deleted(false).build());
             itemOptionRepository.save(ItemOption.builder().optionGroup(cookingGroup).optionCode("COOK_MEDIUM_RARE").name("Medium Rare").price(0.0).displayOrder(2).available(true).deleted(false).build());
             itemOptionRepository.save(ItemOption.builder().optionGroup(cookingGroup).optionCode("COOK_MEDIUM").name("Medium").price(0.0).displayOrder(3).available(true).deleted(false).build());
             itemOptionRepository.save(ItemOption.builder().optionGroup(cookingGroup).optionCode("COOK_WELL_DONE").name("Well Done").price(0.0).displayOrder(4).available(true).deleted(false).build());
 
-            MenuItem special2 = MenuItem.builder()
-                    .name("Seared Scallops")
-                    .price(38.0)
+            menuItemRepository.save(MenuItem.builder().name("Seared Scallops").price(38.0)
                     .description("Pan-seared scallops, cauliflower purée, brown butter caviar.")
-                    .imageUrl("special")
-                    .available(true)
-                    .type(MenuItemType.KITCHEN)
-                    .category(specialCat)
-                    .build();
-            menuItemRepository.save(special2);
+                    .imageUrl("special").available(true).type(MenuItemType.KITCHEN).category(specialCat).build());
         }
 
-        // Repair/Migration: generate reservation codes & slots for any BOOKED reservations that don't have them
+        // Repair: generate reservation codes for BOOKED reservations missing them
         List<Reservation> bookedWithoutCode = reservationRepository.findAll().stream()
-                .filter(r -> r.getStatus() == com.qrorder.entity.enums.ReservationStatus.BOOKED 
+                .filter(r -> r.getStatus() == com.qrorder.entity.enums.ReservationStatus.BOOKED
                         && (r.getReservationCode() == null || r.getReservationCode().isBlank()))
                 .toList();
         for (Reservation r : bookedWithoutCode) {
@@ -395,17 +231,79 @@ public class DatabaseSeeder implements CommandLineRunner {
                 code = "RB-" + String.format("%06d", java.util.concurrent.ThreadLocalRandom.current().nextInt(100000, 1000000));
             } while (reservationRepository.findByReservationCode(code).isPresent());
             r.setReservationCode(code);
-            if (r.getTimeSlotStart() == null) {
-                r.setTimeSlotStart(r.getReservationTime());
-            }
-            if (r.getTimeSlotEnd() == null) {
-                r.setTimeSlotEnd(r.getReservationTime().plusHours(2));
-            }
+            if (r.getTimeSlotStart() == null) r.setTimeSlotStart(r.getReservationTime());
+            if (r.getTimeSlotEnd() == null) r.setTimeSlotEnd(r.getReservationTime().plusHours(2));
             reservationRepository.save(r);
+        }
+
+        if (paymentRepository.count() == 0) {
+            RestaurantTable table1 = tableRepository.findByTableNumber(1).orElse(null);
+            RestaurantTable table2 = tableRepository.findByTableNumber(2).orElse(null);
+            RestaurantTable table3 = tableRepository.findByTableNumber(3).orElse(null);
+            RestaurantTable table4 = tableRepository.findByTableNumber(4).orElse(null);
+            RestaurantTable table5 = tableRepository.findByTableNumber(5).orElse(null);
+
+            seedSessionPayment(table1, 8000000.0, PaymentMethod.CASH, LocalDateTime.now().minusDays(6).withHour(12).withMinute(0));
+            seedSessionPayment(table2, 4000000.0, PaymentMethod.PAYPAL, LocalDateTime.now().minusDays(6).withHour(18).withMinute(30));
+            seedSessionPayment(table3, 500000.0, PaymentMethod.QR, LocalDateTime.now().minusDays(6).withHour(20).withMinute(15));
+
+            seedSessionPayment(table1, 9000000.0, PaymentMethod.CASH, LocalDateTime.now().minusDays(5).withHour(13).withMinute(0));
+            seedSessionPayment(table3, 5000000.0, PaymentMethod.PAYPAL, LocalDateTime.now().minusDays(5).withHour(19).withMinute(0));
+            seedSessionPayment(table4, 800000.0, PaymentMethod.QR, LocalDateTime.now().minusDays(5).withHour(21).withMinute(0));
+
+            seedSessionPayment(table2, 7500000.0, PaymentMethod.CASH, LocalDateTime.now().minusDays(4).withHour(12).withMinute(30));
+            seedSessionPayment(table4, 4500000.0, PaymentMethod.PAYPAL, LocalDateTime.now().minusDays(4).withHour(18).withMinute(0));
+            seedSessionPayment(table5, 700000.0, PaymentMethod.QR, LocalDateTime.now().minusDays(4).withHour(19).withMinute(30));
+
+            seedSessionPayment(table1, 10000000.0, PaymentMethod.CASH, LocalDateTime.now().minusDays(3).withHour(13).withMinute(30));
+            seedSessionPayment(table3, 6000000.0, PaymentMethod.PAYPAL, LocalDateTime.now().minusDays(3).withHour(19).withMinute(15));
+            seedSessionPayment(table2, 900000.0, PaymentMethod.QR, LocalDateTime.now().minusDays(3).withHour(20).withMinute(45));
+
+            seedSessionPayment(table4, 8500000.0, PaymentMethod.CASH, LocalDateTime.now().minusDays(2).withHour(12).withMinute(0));
+            seedSessionPayment(table5, 4000000.0, PaymentMethod.PAYPAL, LocalDateTime.now().minusDays(2).withHour(18).withMinute(30));
+            seedSessionPayment(table1, 800000.0, PaymentMethod.QR, LocalDateTime.now().minusDays(2).withHour(20).withMinute(0));
+
+            seedSessionPayment(table2, 9300000.0, PaymentMethod.CASH, LocalDateTime.now().minusDays(1).withHour(12).withMinute(30));
+            seedSessionPayment(table3, 4500000.0, PaymentMethod.PAYPAL, LocalDateTime.now().minusDays(1).withHour(19).withMinute(0));
+            seedSessionPayment(table4, 700000.0, PaymentMethod.QR, LocalDateTime.now().minusDays(1).withHour(21).withMinute(15));
+
+            seedSessionPayment(table1, 1500000.0, PaymentMethod.CASH, LocalDateTime.now().withHour(11).withMinute(15));
+            seedSessionPayment(table2, 2000000.0, PaymentMethod.CASH, LocalDateTime.now().withHour(12).withMinute(30));
+            seedSessionPayment(table3, 3000000.0, PaymentMethod.CASH, LocalDateTime.now().withHour(18).withMinute(0));
+            seedSessionPayment(table4, 3000000.0, PaymentMethod.CASH, LocalDateTime.now().withHour(19).withMinute(45));
+
+            seedSessionPayment(table5, 2000000.0, PaymentMethod.PAYPAL, LocalDateTime.now().withHour(12).withMinute(15));
+            seedSessionPayment(table1, 3000000.0, PaymentMethod.PAYPAL, LocalDateTime.now().withHour(18).withMinute(45));
+
+            seedSessionPayment(table2, 800000.0, PaymentMethod.QR, LocalDateTime.now().withHour(13).withMinute(0));
         }
     }
 
-    private void seedUser(String username, com.qrorder.entity.enums.Role role) {
+    private void seedSessionPayment(RestaurantTable table, Double amount, PaymentMethod method, LocalDateTime time) {
+        if (table == null) return;
+        TableSession session = TableSession.builder()
+                .table(table)
+                .status(SessionStatus.CLOSED)
+                .openedAt(time.minusHours(2))
+                .closedAt(time)
+                .customerName("Khách Hàng Thử Nghiệm")
+                .customerPhone("0987654321")
+                .subtotal(amount)
+                .finalAmount(amount)
+                .build();
+        session = tableSessionRepository.save(session);
+
+        Payment payment = Payment.builder()
+                .session(session)
+                .amount(amount)
+                .paidAt(time)
+                .paymentMethod(method)
+                .paymentStatus(PaymentStatus.SUCCESS)
+                .build();
+        paymentRepository.save(payment);
+    }
+
+    private void seedUser(String username, Role role) {
         User user = userRepository.findByUsername(username).orElse(null);
         if (user == null) {
             userRepository.save(User.builder()

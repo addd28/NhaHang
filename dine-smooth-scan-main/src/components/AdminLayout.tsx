@@ -2,7 +2,7 @@ import React, { ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, TableProperties, ClipboardList, ChefHat, Banknote,
-  FolderOpen, Users, LogOut, Shield, Compass, BookOpen, MapPin, FileText, KeyRound
+  FolderOpen, Users, LogOut, Shield, Compass, BookOpen, FileText, KeyRound, History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,18 +24,17 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   };
 
   const navItems = [
-    { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN", "BRANCH_MANAGER"] },
-    { to: "/admin/tables", label: "Bàn ăn", icon: TableProperties, roles: ["ADMIN", "BRANCH_MANAGER", "WAITER"] },
-    { to: "/admin/checkin", label: "Xác nhận Check-in", icon: KeyRound, roles: ["ADMIN", "BRANCH_MANAGER", "WAITER"] },
-    { to: "/admin/orders", label: "Waiter (Bưng bê)", icon: ClipboardList, roles: ["ADMIN", "WAITER", "BRANCH_MANAGER"] },
+    { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN"] },
+    { to: "/admin/tables", label: "Bàn ăn", icon: TableProperties, roles: ["ADMIN", "WAITER"] },
+    { to: "/admin/reservations", label: "Quản lý Đặt bàn", icon: KeyRound, roles: ["ADMIN", "WAITER", "CASHIER"] },
+    { to: "/admin/orders", label: "Waiter (Bưng bê)", icon: ClipboardList, roles: ["ADMIN", "WAITER"] },
     { to: "/admin/kitchen", label: "Bếp (Kitchen)", icon: ChefHat, roles: ["ADMIN", "KITCHEN"] },
-    { to: "/admin/payments", label: "Thu ngân (POS)", icon: Banknote, roles: ["ADMIN", "CASHIER", "BRANCH_MANAGER"] },
+    { to: "/admin/payments", label: "Thu ngân (POS)", icon: Banknote, roles: ["ADMIN", "CASHIER"] },
+    { to: "/admin/payments-history", label: "Lịch sử thanh toán", icon: History, roles: ["ADMIN", "CASHIER"] },
     { to: "/admin/categories", label: "Danh mục", icon: FolderOpen, roles: ["ADMIN"] },
     { to: "/admin/menu-management", label: "Thực đơn", icon: BookOpen, roles: ["ADMIN"] },
     { to: "/admin/posts", label: "Bài viết", icon: FileText, roles: ["ADMIN"] },
     { to: "/admin/users", label: "Tài khoản", icon: Users, roles: ["ADMIN"] },
-    { to: "/admin/branches", label: "Chi nhánh", icon: MapPin, roles: ["ADMIN"] },
-    { to: "/admin/provinces", label: "Tỉnh/Thành", icon: Compass, roles: ["ADMIN"] },
   ];
 
   const filteredNav = navItems.filter(item => !user || item.roles.includes(user.role));

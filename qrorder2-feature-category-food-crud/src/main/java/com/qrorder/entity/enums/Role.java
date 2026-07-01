@@ -5,6 +5,5 @@ public enum Role {
     ADMIN,
     KITCHEN,
     WAITER,
-    CASHIER,
-    BRANCH_MANAGER
+    CASHIER
 }

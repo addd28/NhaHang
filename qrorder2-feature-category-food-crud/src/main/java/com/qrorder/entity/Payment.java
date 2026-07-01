@@ -34,10 +34,6 @@ public class Payment {
     )
     private TableSession session;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = false, foreignKey = @ForeignKey(name = "fk_payment_branch"))
-    private Branch branch;
-
     @Column(nullable = false)
     private Double amount;
 
@@ -51,4 +47,10 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaymentStatus paymentStatus;
+
+    @Column(name = "transaction_code", length = 100)
+    private String transactionCode;
+
+    @Column(name = "payment_request_id")
+    private Long paymentRequestId;
 }

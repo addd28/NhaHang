@@ -1,15 +1,21 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
-import { CreditCard, Banknote, History, Clock, CheckCircle2, QrCode, Wallet, AlertCircle, Search, Calendar, Filter, RotateCcw } from "lucide-react";
+import { CreditCard, Banknote, History, Clock, CheckCircle2, QrCode, Wallet, AlertCircle, Search, Calendar, Filter, RotateCcw, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "../../hooks/useAuth";
 import AdminLayout from "../../components/AdminLayout";
 import { paymentApi, PaymentRequestItem } from "../../api/paymentApi";
 import { orderApi } from "../../api/orderApi";
 import { cn } from "@/lib/utils";
+
+const formatPrice = (val?: number | null) => {
+  if (val === null || val === undefined) return "0 đ";
+  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+};
 
 // Component to handle truncation & expansion of ordered items in payment history
 function PaymentItemsCell({ items }: { items: any[] }) {
@@ -63,13 +69,21 @@ function AdminPayments() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<"requests" | "history" | "active">("requests");
+  const [tab, setTab] = useState<"requests" | "active">("requests");
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const handleViewRequest = (req: any) => {
+    setSelectedRequest(req);
+    setShowDetailDialog(true);
+  };
 
   // Route protection
   useEffect(() => {
     if (!isAuthenticated) {
       navigate({ to: "/admin/login" });
-    } else if (user && user.role !== "ADMIN" && user.role !== "CASHIER" && user.role !== "BRANCH_MANAGER") {
+    } else if (user && user.role !== "ADMIN" && user.role !== "CASHIER") {
       toast.error("Bạn không có quyền truy cập trang Thanh toán!");
       navigate({ to: "/" });
     }
@@ -79,92 +93,21 @@ function AdminPayments() {
     queryKey: ["cashierSessions"],
     queryFn: paymentApi.getCashierSessions,
     refetchInterval: 5000,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "CASHIER" || user?.role === "BRANCH_MANAGER") && tab === "active",
+    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "CASHIER") && tab === "active",
   });
 
   const { data: pendingRequests = [], isLoading: requestsLoading } = useQuery({
     queryKey: ["pendingPaymentRequests"],
     queryFn: paymentApi.getPendingPaymentRequests,
     refetchInterval: 3000,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "CASHIER" || user?.role === "BRANCH_MANAGER"),
+    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "CASHIER"),
   });
 
-  const { data: history = [], isLoading: historyLoading } = useQuery({
-    queryKey: ["paymentHistory"],
-    queryFn: paymentApi.getPaymentHistory,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "CASHIER" || user?.role === "BRANCH_MANAGER") && tab === "history",
+  const { data: requestItems = [], isLoading: itemsLoading } = useQuery({
+    queryKey: ["selectedRequestOrders", selectedRequest?.sessionId],
+    queryFn: () => selectedRequest ? orderApi.getOrdersBySession(selectedRequest.sessionId) : Promise.resolve([]),
+    enabled: !!selectedRequest,
   });
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
-
-  // Search & Filter state
-  const [searchTerm, setSearchTerm] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [filterMethod, setFilterMethod] = useState("ALL");
-
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, filterMethod]);
-
-  const filteredHistory = useMemo(() => {
-    return history.filter((h: any) => {
-      // 1. Search term matching
-      if (searchTerm.trim() !== "") {
-        const term = searchTerm.toLowerCase();
-        const paymentIdStr = `txn-${h.paymentId}`.toLowerCase();
-        const sessionIdStr = `ses-${h.sessionId}`.toLowerCase();
-        const matchesId = paymentIdStr.includes(term) || 
-                          sessionIdStr.includes(term) || 
-                          String(h.paymentId).includes(term) ||
-                          String(h.sessionId).includes(term);
-                          
-        const matchesItems = h.items && h.items.some((item: any) => 
-          item.menuItemName && item.menuItemName.toLowerCase().includes(term)
-        );
-        
-        if (!matchesId && !matchesItems) {
-          return false;
-        }
-      }
-
-      // 2. Filter by date range matching (local timezone comparison)
-      if (startDate || endDate) {
-        if (!h.paidAt) return false;
-        const localPaidDate = new Date(h.paidAt);
-        const year = localPaidDate.getFullYear();
-        const month = String(localPaidDate.getMonth() + 1).padStart(2, '0');
-        const day = String(localPaidDate.getDate()).padStart(2, '0');
-        const localPaidDateStr = `${year}-${month}-${day}`;
-        
-        if (startDate && localPaidDateStr < startDate) {
-          return false;
-        }
-        if (endDate && localPaidDateStr > endDate) {
-          return false;
-        }
-      }
-
-      // 3. Filter by payment method
-      if (filterMethod !== "ALL") {
-        const method = h.paymentMethod || "CASH";
-        if (method !== filterMethod) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [history, searchTerm, startDate, endDate, filterMethod]);
-
-  const paginatedHistory = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredHistory.slice(start, start + itemsPerPage);
-  }, [filteredHistory, currentPage]);
-
-  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
 
   const payMutation = useMutation({
     mutationFn: async ({ sessionId, paymentMethod }: { sessionId: number; paymentMethod: string }) => {
@@ -173,7 +116,6 @@ function AdminPayments() {
     onSuccess: () => {
       toast.success("Thanh toán hóa đơn và giải phóng bàn thành công!");
       queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
-      queryClient.invalidateQueries({ queryKey: ["paymentHistory"] });
     },
     onError: (err: any) => {
       const errMsg = err.response?.data?.message || err.message || "Thanh toán thất bại!";
@@ -189,10 +131,28 @@ function AdminPayments() {
       toast.success("✅ Xác nhận thành công! Bàn đã được giải phóng.");
       queryClient.invalidateQueries({ queryKey: ["pendingPaymentRequests"] });
       queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
-      queryClient.invalidateQueries({ queryKey: ["paymentHistory"] });
+      setShowConfirmModal(false);
+      setShowDetailDialog(false);
+      setSelectedRequest(null);
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || "Xác nhận thất bại!");
+    }
+  });
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return paymentApi.cancelPaymentRequest(id);
+    },
+    onSuccess: () => {
+      toast.success("❌ Đã hủy/từ chối yêu cầu thanh toán.");
+      queryClient.invalidateQueries({ queryKey: ["pendingPaymentRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
+      setShowDetailDialog(false);
+      setSelectedRequest(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || err.message || "Hủy yêu cầu thất bại!");
     }
   });
 
@@ -203,7 +163,6 @@ function AdminPayments() {
     onSuccess: () => {
       toast.success("Đóng phiên và giải phóng bàn thành công!");
       queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
-      queryClient.invalidateQueries({ queryKey: ["paymentHistory"] });
     },
     onError: (err: any) => {
       const errMsg = err.response?.data?.message || err.message || "Đóng phiên thất bại!";
@@ -211,7 +170,7 @@ function AdminPayments() {
     }
   });
 
-  if (!isAuthenticated || (user && user.role !== "ADMIN" && user.role !== "CASHIER" && user.role !== "BRANCH_MANAGER")) {
+  if (!isAuthenticated || (user && user.role !== "ADMIN" && user.role !== "CASHIER")) {
     return null;
   }
 
@@ -231,10 +190,10 @@ function AdminPayments() {
             )}
           </button>
           <button
-            onClick={() => setTab("history")}
-            className={`px-4 py-2 border-b-2 font-semibold text-sm transition-colors cursor-pointer ${tab === "history" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setTab("active")}
+            className={`px-4 py-2 border-b-2 font-semibold text-sm transition-colors cursor-pointer ${tab === "active" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
-            <span className="flex items-center gap-1"><History className="h-4 w-4" /> Lịch sử thanh toán</span>
+            <span className="flex items-center gap-1"><CreditCard className="h-4 w-4" /> Thanh toán tại bàn</span>
           </button>
         </div>
 
@@ -248,227 +207,222 @@ function AdminPayments() {
               <p className="text-sm text-muted-foreground">Khi khách gửi yêu cầu thanh toán, thông tin sẽ hiển thị tại đây.</p>
             </div>
           ) : (
+            <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-soft text-left">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-border bg-accent/25 font-semibold text-muted-foreground">
+                      <th className="p-4 text-left">Bàn</th>
+                      <th className="p-4 text-left">Tổng tiền</th>
+                      <th className="p-4 text-left">Mã GD</th>
+                      <th className="p-4 text-left">Thời gian</th>
+                      <th className="p-4 text-left">Trạng thái</th>
+                      <th className="p-4 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingRequests.map((req) => (
+                      <tr key={req.id} className="border-b border-border hover:bg-accent/10 transition-colors">
+                        <td className="p-4 font-bold text-sm">Bàn {req.tableNumber}</td>
+                        <td className="p-4 font-bold text-success text-sm font-display">
+                          {formatPrice(req.amount)}
+                        </td>
+                        <td className="p-4 font-mono font-bold text-primary">{req.transactionCode || `TXN-${req.id}`}</td>
+                        <td className="p-4 text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            {req.requestedAt ? new Date(req.requestedAt).toLocaleTimeString("vi-VN") : "Just now"}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-warning/10 text-warning border border-warning/20">
+                            {req.paymentStatus || req.status}
+                          </Badge>
+                        </td>
+                        <td className="p-4 text-right">
+                          <Button 
+                            onClick={() => handleViewRequest(req)}
+                            variant="outline"
+                            className="h-8 text-[11px] font-bold rounded-lg px-3 cursor-pointer hover:bg-accent text-primary"
+                          >
+                            Xem
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : (
+          openLoading ? (
+            <div className="py-20 text-center text-sm text-muted-foreground animate-pulse">Đang tải...</div>
+          ) : openSessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center bg-card border border-border rounded-3xl space-y-3 shadow-soft">
+              <CheckCircle2 className="h-10 w-10 text-success" />
+              <p className="font-semibold text-lg">Không có bàn nào đang hoạt động!</p>
+              <p className="text-sm text-muted-foreground">Tất cả các bàn đều trống hoặc đã hoàn tất thanh toán.</p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pendingRequests.map((req) => (
-                <PaymentRequestCard
-                  key={req.id}
-                  request={req}
-                  onConfirm={(id) => confirmRequestMutation.mutate(id)}
-                  isConfirming={confirmRequestMutation.isPending}
+              {openSessions.map((session: any) => (
+                <SessionCard
+                  key={session.sessionId}
+                  session={session}
+                  onPay={(sessionId, paymentMethod) => payMutation.mutate({ sessionId, paymentMethod })}
+                  isPaying={payMutation.isPending}
+                  onCloseSession={(sessionId) => closeSessionMutation.mutate(sessionId)}
+                  isClosing={closeSessionMutation.isPending}
                 />
               ))}
             </div>
           )
-        ) : tab === "history" ? (
-          historyLoading ? (
-            <div className="py-20 text-center text-sm text-muted-foreground animate-pulse">
-              Đang tải lịch sử thanh toán...
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Search and Filters Bar */}
-              <div className="flex flex-col lg:flex-row gap-3 items-end justify-between bg-card border border-border p-4 rounded-3xl shadow-sm text-left">
-                <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full lg:w-auto flex-1 items-end">
-                  {/* Search Input */}
-                  <div className="flex flex-col gap-1 w-full sm:flex-1 max-w-md">
-                    <span className="text-[10px] font-semibold text-muted-foreground ml-1">Từ khóa tìm kiếm</span>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <input
-                        type="text"
-                        placeholder="Tìm hóa đơn (ID, Phiên, Tên món...)"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9 pr-12 py-2 w-full text-xs bg-background border border-input rounded-2xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
-                      {searchTerm && (
-                        <button
-                          onClick={() => setSearchTerm("")}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-semibold cursor-pointer"
-                        >
-                          Xóa
-                        </button>
-                      )}
-                    </div>
-                  </div>
+        )}
+      </div>
 
-                  {/* Start Date Filter */}
-                  <div className="flex flex-col gap-1 w-full sm:w-40">
-                    <span className="text-[10px] font-semibold text-muted-foreground ml-1">Từ ngày</span>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="pl-9 pr-4 py-2 w-full text-xs bg-background border border-input rounded-2xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                      />
-                    </div>
-                  </div>
+      {/* Pending Request Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        {selectedRequest && (
+          <DialogContent className="max-w-md bg-card border border-border p-6 rounded-3xl text-left text-foreground">
+            <DialogTitle className="font-display text-xl font-bold flex items-center justify-between border-b border-border/60 pb-3">
+              <span>Yêu cầu thanh toán Bàn {selectedRequest.tableNumber}</span>
+              <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-warning/10 text-warning border border-warning/20">
+                PENDING
+              </Badge>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Chi tiết yêu cầu thanh toán chuyển khoản từ khách hàng.
+            </DialogDescription>
 
-                  {/* End Date Filter */}
-                  <div className="flex flex-col gap-1 w-full sm:w-40">
-                    <span className="text-[10px] font-semibold text-muted-foreground ml-1">Đến ngày</span>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="pl-9 pr-4 py-2 w-full text-xs bg-background border border-input rounded-2xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Payment Method Filter */}
-                  <div className="flex flex-col gap-1 w-full sm:w-44">
-                    <span className="text-[10px] font-semibold text-muted-foreground ml-1">Phương thức</span>
-                    <div className="relative">
-                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <select
-                        value={filterMethod}
-                        onChange={(e) => setFilterMethod(e.target.value)}
-                        className="pl-9 pr-8 py-2 w-full text-xs bg-background border border-input rounded-2xl focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer appearance-none"
-                      >
-                        <option value="ALL">Tất cả phương thức</option>
-                        <option value="CASH">Tiền mặt (CASH)</option>
-                        <option value="QR">Chuyển khoản QR</option>
-                        <option value="PAYPAL">PayPal</option>
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-[8px]">
-                        ▼
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reset Filters Button */}
-                {(searchTerm || startDate || endDate || filterMethod !== "ALL") && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setStartDate("");
-                      setEndDate("");
-                      setFilterMethod("ALL");
-                    }}
-                    className="text-xs h-9 px-3 gap-1 rounded-2xl cursor-pointer hover:bg-accent mb-0.5"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    Đặt lại
-                  </Button>
-                )}
-              </div>
-
-              {filteredHistory.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 text-center bg-card border border-border rounded-3xl space-y-3 shadow-soft">
-                  <AlertCircle className="h-10 w-10 text-muted-foreground" />
-                  <p className="font-semibold text-lg">Không tìm thấy kết quả phù hợp</p>
-                  <p className="text-sm text-muted-foreground">Thử thay đổi từ khóa tìm kiếm hoặc các bộ lọc của bạn.</p>
-                </div>
-              ) : (
-                <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-soft text-left">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="border-b border-border bg-accent/25 text-xs font-semibold text-muted-foreground">
-                          <th className="p-4 text-left">ID Giao dịch</th>
-                          <th className="p-4 text-left">Mã Phiên</th>
-                          <th className="p-4 text-left">Món ăn đã gọi</th>
-                          <th className="p-4 text-left">Phương thức</th>
-                          <th className="p-4 text-left">Thời gian thanh toán</th>
-                          <th className="p-4 text-right">Tổng thanh toán</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedHistory.map((h: any) => (
-                          <tr key={h.paymentId} className="border-b border-border hover:bg-accent/10 transition-colors">
-                            <td className="p-4 font-mono text-xs">TXN-{h.paymentId}</td>
-                            <td className="p-4 font-mono text-xs">SES-{h.sessionId}</td>
-                            <td className="p-4 text-xs">
-                              <PaymentItemsCell items={h.items} />
-                            </td>
-                            <td className="p-4">
-                              <Badge variant="secondary" className="bg-accent text-foreground border-0 text-[10px]">
-                                {h.paymentMethod || "CASH"}
-                              </Badge>
-                            </td>
-                            <td className="p-4 text-xs text-muted-foreground">
-                              {h.paidAt ? new Date(h.paidAt).toLocaleString() : "Just now"}
-                            </td>
-                            <td className="p-4 text-right font-bold text-success">${h.amount ? h.amount.toFixed(2) : "0.00"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-card/50">
-                      <div className="flex flex-1 justify-between sm:hidden">
-                        <Button
-                          variant="outline"
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                          className="h-8 text-xs cursor-pointer"
-                        >
-                          Trước
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                          className="h-8 text-xs cursor-pointer"
-                        >
-                          Sau
-                        </Button>
-                      </div>
-                      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            Hiển thị <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> đến{" "}
-                            <span className="font-semibold">{Math.min(currentPage * itemsPerPage, filteredHistory.length)}</span> trong số{" "}
-                            <span className="font-semibold">{filteredHistory.length}</span> kết quả
-                          </p>
-                        </div>
-                        <div>
-                          <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm gap-1" aria-label="Pagination">
-                            <Button
-                              variant="outline"
-                              className="rounded-l-md px-2 py-1 h-8 text-xs cursor-pointer"
-                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                              disabled={currentPage === 1}
-                            >
-                              Trước
-                            </Button>
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                              <Button
-                                key={page}
-                                variant={currentPage === page ? "default" : "outline"}
-                                className="px-3 py-1 h-8 text-xs cursor-pointer"
-                                onClick={() => setCurrentPage(page)}
-                              >
-                                {page}
-                              </Button>
-                            ))}
-                            <Button
-                              variant="outline"
-                              className="rounded-r-md px-2 py-1 h-8 text-xs cursor-pointer"
-                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                              disabled={currentPage === totalPages}
-                            >
-                              Sau
-                            </Button>
-                          </nav>
-                        </div>
-                      </div>
+            <div className="space-y-4 mt-4">
+              {/* VietQR code if method is QR */}
+              {selectedRequest.paymentMethod === "QR" && (
+                <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-gray-100 shadow-soft">
+                  {selectedRequest.qrUrl ? (
+                    <img 
+                      src={selectedRequest.qrUrl} 
+                      alt="VietQR code" 
+                      className="w-44 h-44 object-contain"
+                    />
+                  ) : (
+                    <div className="w-44 h-44 bg-accent/20 rounded-xl flex items-center justify-center text-xs text-muted-foreground animate-pulse">
+                      Đang tạo QR...
                     </div>
                   )}
+                  <p className="text-[10px] text-muted-foreground mt-2 font-mono">
+                    Nội dung chuyển khoản: <span className="font-bold text-primary">{selectedRequest.transferContent || selectedRequest.transactionCode}</span>
+                  </p>
                 </div>
               )}
+
+              {/* Request Info */}
+              <div className="bg-accent/10 border border-border/40 rounded-2xl p-4 space-y-2.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Mã giao dịch:</span>
+                  <span className="font-mono font-bold text-primary">{selectedRequest.transactionCode || `TXN-${selectedRequest.id}`}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-border/10 pt-2">
+                  <span className="text-muted-foreground">Phương thức:</span>
+                  <span className="font-bold">{selectedRequest.paymentMethod === "QR" ? "VietQR (Chuyển khoản)" : selectedRequest.paymentMethod === "CASH" ? "Tiền mặt" : selectedRequest.paymentMethod}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-border/10 pt-2">
+                  <span className="text-muted-foreground">Tổng tiền:</span>
+                  <span className="font-display font-bold text-success text-sm">
+                    {formatPrice(selectedRequest.amount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-border/10 pt-2">
+                  <span className="text-muted-foreground">Thời gian gửi:</span>
+                  <span>{selectedRequest.requestedAt ? new Date(selectedRequest.requestedAt).toLocaleString("vi-VN") : "—"}</span>
+                </div>
+              </div>
+
+              {/* Order Items */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Danh sách món đã gọi:</p>
+                <div className="border border-border/60 rounded-2xl overflow-hidden max-h-[160px] overflow-y-auto space-y-1.5 p-3 bg-accent/5">
+                  {itemsLoading ? (
+                    <p className="text-xs text-muted-foreground animate-pulse text-center py-4">Đang tải món ăn...</p>
+                  ) : requestItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic text-center py-4">Chưa có món ăn nào</p>
+                  ) : (
+                    requestItems.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-start text-xs border-b border-border/30 last:border-b-0 pb-1.5 last:pb-0">
+                        <div className="flex-1 truncate pr-2">
+                          <p className="font-bold truncate">{item.menuItemName}</p>
+                          {item.options && item.options.length > 0 && (
+                            <p className="text-[10px] text-muted-foreground pl-1.5 mt-0.5">+ {item.options.join(", ")}</p>
+                          )}
+                        </div>
+                        <span className="font-semibold text-muted-foreground shrink-0">x{item.quantity}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  onClick={() => cancelRequestMutation.mutate(selectedRequest.id)}
+                  disabled={cancelRequestMutation.isPending || confirmRequestMutation.isPending}
+                  variant="outline"
+                  className="flex-1 h-11 rounded-full border-border bg-accent/20 text-destructive font-bold hover:bg-destructive/10 cursor-pointer text-xs animate-button"
+                >
+                  {cancelRequestMutation.isPending ? "Đang hủy..." : "Hủy yêu cầu"}
+                </Button>
+                <Button
+                  onClick={() => setShowConfirmModal(true)}
+                  disabled={confirmRequestMutation.isPending}
+                  className="flex-1 h-11 rounded-full bg-success text-success-foreground font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs"
+                >
+                  Đã nhận tiền
+                </Button>
+              </div>
             </div>
-          )
-        ) : null}
-      </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Cashier Confirm Modal */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-sm bg-card border border-border p-6 rounded-3xl text-center text-foreground">
+          <DialogTitle className="font-display text-lg font-bold text-warning flex items-center justify-center gap-1.5">
+            <AlertTriangle className="h-5 w-5 text-warning animate-bounce" /> Xác nhận đã nhận tiền?
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Hộp thoại xác nhận thu ngân đã kiểm tra tiền vào tài khoản.
+          </DialogDescription>
+          <div className="space-y-4 mt-2">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Bạn đã kiểm tra tiền đã vào tài khoản thực tế chưa? Sau khi xác nhận, hệ thống sẽ thực hiện các tác vụ sau:
+            </p>
+            <div className="bg-accent/10 border border-border/40 rounded-2xl p-4 text-left text-[11px] space-y-1.5 text-muted-foreground">
+              <p className="flex items-center gap-1.5 font-semibold text-foreground"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> Đóng bàn phục vụ</p>
+              <p className="flex items-center gap-1.5 font-semibold text-foreground"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> Sinh hóa đơn thanh toán</p>
+              <p className="flex items-center gap-1.5 font-semibold text-foreground"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> Không thể hoàn tác hành động này</p>
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={() => setShowConfirmModal(false)}
+                variant="outline"
+                className="flex-1 h-10 rounded-full border-border bg-accent/25 text-foreground font-bold hover:bg-accent/40 cursor-pointer text-xs"
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={() => confirmRequestMutation.mutate(selectedRequest?.id)}
+                disabled={confirmRequestMutation.isPending}
+                className="flex-1 h-10 rounded-full bg-success text-success-foreground font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs"
+              >
+                {confirmRequestMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
@@ -588,7 +542,7 @@ function SessionCard({ session, onPay, isPaying, onCloseSession, isClosing }: Se
             </div>
           )}
 
-          {!isPayPalPaid && user?.role !== "BRANCH_MANAGER" && (
+          {!isPayPalPaid && (
             <div className="border-t border-border/60 pt-3 space-y-2">
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Phương thức thanh toán:</h4>
               <div className="grid grid-cols-3 gap-2">
@@ -614,16 +568,12 @@ function SessionCard({ session, onPay, isPaying, onCloseSession, isClosing }: Se
 
           <div className="flex justify-between items-baseline border-t border-dashed border-border/80 pt-3">
             <span className="text-base font-semibold">Tạm tính:</span>
-            <span className="font-display text-xl font-bold text-primary">${session.totalAmount.toFixed(2)}</span>
+            <span className="font-display text-xl font-bold text-primary">{formatPrice(session.totalAmount)}</span>
           </div>
         </div>
       </div>
 
-      {user?.role === "BRANCH_MANAGER" ? (
-        <div className="p-3 bg-accent/30 rounded-2xl border border-border/50 text-center text-xs font-bold text-muted-foreground">
-          Chi nhánh: {session.branchName || "Chưa xác định"} (Chỉ xem)
-        </div>
-      ) : isPayPalPaid ? (
+      {isPayPalPaid ? (
         <Button
           onClick={() => onCloseSession(session.sessionId)}
           disabled={isClosing}
@@ -723,10 +673,6 @@ function PaymentRequestCard({ request, onConfirm, isConfirming }: PaymentRequest
         {/* Info */}
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Chi nhánh:</span>
-            <span className="font-semibold text-xs">{request.branchName || "—"}</span>
-          </div>
-          <div className="flex justify-between">
             <span className="text-muted-foreground">Gửi lúc:</span>
             <span className="font-medium text-xs flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -785,7 +731,7 @@ function PaymentRequestCard({ request, onConfirm, isConfirming }: PaymentRequest
         <div className="flex justify-between items-baseline border-t border-dashed border-border/80 pt-3">
           <span className="text-base font-semibold">Tổng hóa đơn:</span>
           <span className="font-display text-xl font-bold text-primary">
-            ${request.amount ? Number(request.amount).toFixed(2) : "0.00"}
+            {formatPrice(request.amount)}
           </span>
         </div>
       </div>

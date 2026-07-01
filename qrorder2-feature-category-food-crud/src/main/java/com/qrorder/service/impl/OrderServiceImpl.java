@@ -13,7 +13,7 @@ import com.qrorder.entity.OrderItemOption;
 import com.qrorder.entity.Order;
 import com.qrorder.entity.OrderItem;
 import com.qrorder.entity.TableSession;
-import com.qrorder.entity.Branch;
+
 
 import com.qrorder.entity.enums.MenuItemType;
 import com.qrorder.entity.Reservation;
@@ -82,8 +82,6 @@ public class OrderServiceImpl
             throw new RuntimeException("Either Session ID or Reservation ID must be provided");
         }
 
-        Branch branch = session != null ? session.getBranch() : (reservation != null ? reservation.getBranch() : null);
-
         Order order =
 
                 Order.builder()
@@ -95,8 +93,6 @@ public class OrderServiceImpl
                         .session(session)
 
                         .reservation(reservation)
-
-                        .branch(branch)
 
                         .build();
 

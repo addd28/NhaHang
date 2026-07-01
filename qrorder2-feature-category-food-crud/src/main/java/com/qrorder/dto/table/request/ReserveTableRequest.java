@@ -11,9 +11,6 @@ import java.time.LocalDateTime;
 @Data
 public class ReserveTableRequest {
 
-    @NotNull(message = "Branch ID is required")
-    private Long branchId;
-
     @NotBlank(message = "Customer name is required")
     private String customerName;
 

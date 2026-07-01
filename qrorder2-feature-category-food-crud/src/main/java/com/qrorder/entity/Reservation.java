@@ -55,10 +55,6 @@ public class Reservation {
     private LocalDateTime checkedInAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = false, foreignKey = @ForeignKey(name = "fk_reservation_branch"))
-    private Branch branch;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "table_id")
     private RestaurantTable table;
 }

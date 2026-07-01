@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "../../hooks/useAuth";
 import AdminLayout from "../../components/AdminLayout";
 import { tableApi } from "../../api/tableApi";
-import { branchApi } from "../../api/branchApi";
 import axiosInstance from "../../api/axiosInstance";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -26,44 +25,29 @@ function AdminTables() {
   const [editId, setEditId] = useState<number | null>(null);
   const [tableNumber, setTableNumber] = useState<number | "">("");
   const [capacity, setCapacity] = useState<number | "">("");
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("all");
-  const [branchId, setBranchId] = useState<string>("");
   const [qrModalTable, setQrModalTable] = useState<any | null>(null);
 
   // Route protection
   useEffect(() => {
     if (!isAuthenticated) {
       navigate({ to: "/admin/login" });
-    } else if (user && user.role !== "ADMIN" && user.role !== "BRANCH_MANAGER" && user.role !== "WAITER") {
+    } else if (user && user.role !== "ADMIN" && user.role !== "WAITER") {
       toast.error("Bạn không có quyền truy cập trang Quản lý bàn!");
       navigate({ to: "/" });
     }
   }, [user, isAuthenticated]);
 
-  // Lock filter for BRANCH_MANAGER and WAITER
-  useEffect(() => {
-    if (user && (user.role === "BRANCH_MANAGER" || user.role === "WAITER") && user.branchId) {
-      setSelectedBranchFilter(String(user.branchId));
-    }
-  }, [user]);
-
-  const { data: branches = [] } = useQuery({
-    queryKey: ["adminBranches"],
-    queryFn: branchApi.getBranches,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "BRANCH_MANAGER" || user?.role === "WAITER"),
-  });
-
   const { data: rawTables, isLoading } = useQuery({
-    queryKey: ["adminTables", selectedBranchFilter],
-    queryFn: () => tableApi.getTables(selectedBranchFilter === "all" ? undefined : Number(selectedBranchFilter)),
+    queryKey: ["adminTables"],
+    queryFn: () => tableApi.getTables(),
     refetchInterval: 5000,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "BRANCH_MANAGER" || user?.role === "WAITER"),
+    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "WAITER"),
   });
 
   const tables = useMemo(() => rawTables || [], [rawTables]);
 
   const createMutation = useMutation({
-    mutationFn: async (request: { tableNumber: number; capacity: number; branchId: number }) => {
+    mutationFn: async (request: { tableNumber: number; capacity: number }) => {
       return tableApi.createTable(request);
     },
     onSuccess: () => {
@@ -82,7 +66,7 @@ function AdminTables() {
       request,
     }: {
       id: number;
-      request: { tableNumber: number; capacity: number; branchId?: number };
+      request: { tableNumber: number; capacity: number };
     }) => {
       return tableApi.updateTable(id, request);
     },
@@ -169,7 +153,6 @@ function AdminTables() {
     setEditId(table.id);
     setTableNumber(table.tableNumber);
     setCapacity(table.capacity);
-    setBranchId(table.branchId ? String(table.branchId) : "");
     setFormOpen(true);
   };
 
@@ -177,7 +160,6 @@ function AdminTables() {
     setEditId(null);
     setTableNumber("");
     setCapacity("");
-    setBranchId("");
     setFormOpen(false);
   };
 
@@ -187,15 +169,10 @@ function AdminTables() {
       toast.error("Vui lòng điền đầy đủ thông tin!");
       return;
     }
-    if (!branchId) {
-      toast.error("Vui lòng chọn chi nhánh!");
-      return;
-    }
 
     const payload = {
       tableNumber: Number(tableNumber),
       capacity: Number(capacity),
-      branchId: Number(branchId),
     };
 
     if (editId) {
@@ -208,7 +185,7 @@ function AdminTables() {
     }
   };
 
-  if (!isAuthenticated || (user && user.role !== "ADMIN" && user.role !== "BRANCH_MANAGER" && user.role !== "WAITER")) {
+  if (!isAuthenticated || (user && user.role !== "ADMIN" && user.role !== "WAITER")) {
     return null;
   }
 
@@ -243,36 +220,14 @@ function AdminTables() {
           {user?.role === "ADMIN" && (
             <Button
               onClick={() => setFormOpen(true)}
-              className="rounded-full bg-gradient-primary text-primary-foreground font-bold shadow-soft flex items-center gap-1.5 cursor-pointer text-xs h-9 px-4"
+              className="rounded-full bg-gradient-primary text-primary-foreground hover:text-black transition-colors font-bold shadow-soft flex items-center gap-1.5 cursor-pointer text-xs h-9 px-4"
             >
               <Plus className="h-4 w-4" /> Thêm bàn
             </Button>
           )}
         </div>
 
-        {/* Branch Filter */}
-        {user?.role === "ADMIN" && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border p-4 rounded-3xl shadow-soft">
-            <div className="text-left">
-              <label className="text-xs font-bold text-muted-foreground block mb-1.5">Lọc theo Chi nhánh</label>
-              <select
-                value={selectedBranchFilter}
-                onChange={(e) => {
-                  setSelectedBranchFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-10 px-4 rounded-xl border border-border bg-card text-sm focus:outline-none focus:border-primary cursor-pointer min-w-[200px]"
-              >
-                <option value="all">Tất cả chi nhánh</option>
-                {branches.map((b: any) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
+
 
         {/* Form create/edit */}
         {formOpen && (
@@ -309,28 +264,7 @@ function AdminTables() {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">
-                  Chi nhánh *
-                </label>
-                <select
-                  value={branchId}
-                  onChange={(e) => setBranchId(e.target.value)}
-                  className="w-full h-10 px-4 rounded-xl border border-border bg-card text-sm focus:outline-none focus:border-primary cursor-pointer"
-                >
-                  <option value="">-- Chọn chi nhánh --</option>
-                  {branches.map((b: any) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                {branches.length === 0 && (
-                  <p className="text-[10px] text-destructive mt-1">
-                    Chưa có chi nhánh nào. Vui lòng tạo chi nhánh trước.
-                  </p>
-                )}
-              </div>
+
 
               <div className="flex gap-2 justify-end pt-2">
                 <Button
@@ -343,7 +277,7 @@ function AdminTables() {
                 </Button>
                 <Button
                   type="submit"
-                  className="h-9 rounded-full bg-primary text-primary-foreground font-bold text-xs px-4 cursor-pointer"
+                  className="h-9 rounded-full bg-primary text-primary-foreground hover:text-black transition-colors font-bold text-xs px-4 cursor-pointer"
                 >
                   {editId ? "Cập nhật" : "Lưu bàn"}
                 </Button>
@@ -421,9 +355,7 @@ function AdminTables() {
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Sức chứa: {table.capacity} khách
                       </p>
-                      <p className="text-xs font-semibold text-primary mt-0.5">
-                        Chi nhánh: {table.branchName || "Chưa xác định"}
-                      </p>
+
                       <p className="text-[10px] font-mono text-muted-foreground/80 mt-1">
                         Token QR: {table.qrToken.substring(0, 8)}...
                       </p>
@@ -480,7 +412,7 @@ function AdminTables() {
                       <Button
                         onClick={() => openSessionMutation.mutate(table.id)}
                         disabled={openSessionMutation.isPending}
-                        className="w-full h-9 rounded-xl bg-primary text-primary-foreground text-xs font-bold gap-1.5 cursor-pointer"
+                        className="w-full h-9 rounded-xl bg-primary text-primary-foreground hover:text-black transition-colors text-xs font-bold gap-1.5 cursor-pointer"
                       >
                         <Power className="h-3.5 w-3.5" /> Mở bàn
                       </Button>
@@ -490,7 +422,7 @@ function AdminTables() {
                         <Button
                           onClick={() => checkinMutation.mutate(table.id)}
                           disabled={checkinMutation.isPending}
-                          className="flex-1 h-9 rounded-xl bg-gradient-primary text-primary-foreground text-xs font-bold cursor-pointer"
+                          className="flex-1 h-9 rounded-xl bg-gradient-primary text-primary-foreground hover:text-black transition-colors text-xs font-bold cursor-pointer"
                         >
                           ✓ Nhận bàn
                         </Button>
@@ -511,7 +443,7 @@ function AdminTables() {
                         disabled={resetMutation.isPending}
                         className="w-full h-9 rounded-xl border-dashed text-destructive hover:bg-destructive/10 text-xs font-bold gap-1.5 cursor-pointer"
                       >
-                        <RotateCcw className="h-3.5 w-3.5" /> Đóng phiên & Đã dọn bàn
+                        <RotateCcw className="h-3.5 w-3.5" /> Đóng bàn
                       </Button>
                     ) : (
                       /* DISABLED hoặc trạng thái khác — không thao tác */
@@ -612,7 +544,7 @@ function AdminTables() {
                   navigator.clipboard.writeText(`${window.location.origin}/customer/menu?tableKey=${qrModalTable.tableKey || ""}`);
                   toast.success("Đã sao chép liên kết QR!");
                 }}
-                className="w-full h-9 rounded-full bg-primary text-primary-foreground font-bold text-xs"
+                className="w-full h-9 rounded-full bg-primary text-primary-foreground hover:text-black transition-colors font-bold text-xs"
               >
                 Sao chép liên kết
               </Button>

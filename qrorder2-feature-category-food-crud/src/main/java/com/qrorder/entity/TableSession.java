@@ -31,10 +31,6 @@ public class TableSession {
     @JoinColumn(name = "table_id")
     private RestaurantTable table;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = false, foreignKey = @ForeignKey(name = "fk_table_session_branch"))
-    private Branch branch;
-
     @Enumerated(EnumType.STRING)
     private SessionStatus status;
 

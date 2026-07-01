@@ -101,7 +101,6 @@ public class PaypalServiceImpl implements PaypalService {
         } else {
             payment = Payment.builder()
                     .session(session)
-                    .branch(session.getBranch())
                     .amount(amount)
                     .paidAt(LocalDateTime.now())
                     .paymentMethod(PaymentMethod.PAYPAL)
@@ -261,7 +260,6 @@ public class PaypalServiceImpl implements PaypalService {
             PaymentRequest pr = PaymentRequest.builder()
                     .session(session)
                     .table(session.getTable())
-                    .branch(session.getBranch())
                     .amount(java.math.BigDecimal.valueOf(finalAmount))
                     .paymentMethod(PaymentMethod.PAYPAL)
                     .status(PaymentRequestStatus.PENDING)

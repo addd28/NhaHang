@@ -42,8 +42,7 @@ public class CashierController {
      */
     @GetMapping("/payment-requests")
     public ResponseEntity<List<PaymentRequestResponse>> getPendingPaymentRequests() {
-        Long branchId = getCurrentUserBranchId();
-        List<PaymentRequestResponse> list = paymentRequestService.getPendingRequests(branchId);
+        List<PaymentRequestResponse> list = paymentRequestService.getPendingRequests();
         return ResponseEntity.ok(list);
     }
 
@@ -74,18 +73,5 @@ public class CashierController {
             if (user != null) return user.getId();
         }
         return null;
-    }
-
-    private Long getCurrentUserBranchId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) return null;
-
-        // ADMIN thấy tất cả → return null
-        boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        if (isAdmin) return null;
-
-        User user = userRepository.findByUsername(auth.getName()).orElse(null);
-        return (user != null && user.getBranch() != null) ? user.getBranch().getId() : null;
     }
 }

@@ -42,10 +42,6 @@ public class TableResponse {
 
     private String reservationCode;
 
-    private Long branchId;
-
-    private String branchName;
-
 
     public TableResponse(
             Long id,

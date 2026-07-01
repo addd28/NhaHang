@@ -1,11 +1,9 @@
-export type UserRole = "ADMIN" | "KITCHEN" | "WAITER" | "CASHIER" | "USER" | "BRANCH_MANAGER";
+export type UserRole = "ADMIN" | "KITCHEN" | "WAITER" | "CASHIER" | "USER";
 
 export interface User {
   id?: number;
   username: string;
   role: UserRole;
-  branchId?: number;
-  branchName?: string;
 }
 
 export type TableStatus = "EMPTY" | "RESERVED" | "OCCUPIED" | "DIRTY";
@@ -24,8 +22,6 @@ export interface RestaurantTable {
   note?: string;
   confirmationCode?: string;
   reservationCode?: string;
-  branchId?: number;
-  branchName?: string;
 }
 
 export type SessionStatus = "OPEN" | "PAID" | "CLOSED";
@@ -157,22 +153,7 @@ export interface Review {
   createdAt?: string;
 }
 
-export interface Province {
-  id: number;
-  name: string;
-  branchCount?: number;
-  createdAt?: string;
-}
 
-export interface Branch {
-  id: number;
-  name: string;
-  address?: string;
-  phone?: string;
-  provinceId?: number;
-  provinceName?: string;
-  createdAt?: string;
-}
 
 export interface Article {
   id?: number;

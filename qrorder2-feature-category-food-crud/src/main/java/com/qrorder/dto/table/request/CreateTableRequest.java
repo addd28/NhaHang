@@ -22,6 +22,4 @@ public class CreateTableRequest {
     )
     private Integer capacity;
 
-    @NotNull(message = "Branch ID is required")
-    private Long branchId;
 }

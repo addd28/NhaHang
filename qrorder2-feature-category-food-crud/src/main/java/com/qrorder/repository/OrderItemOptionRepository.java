@@ -11,19 +11,18 @@ import java.util.List;
 
 public interface OrderItemOptionRepository extends JpaRepository<OrderItemOption, Long> {
 
+    // branchId param kept for API compatibility but ignored (single-restaurant MVP)
     @Query("SELECT new com.qrorder.dto.dashboard.OptionReportResponse(" +
            "oio.itemOptionId, MAX(oio.optionName), MAX(oio.optionGroupName), oio.optionGroupType, " +
            "SUM(oio.quantity), SUM(oio.subtotal)) " +
            "FROM OrderItemOption oio " +
            "JOIN oio.orderItem oi " +
            "JOIN oi.order o " +
-           "WHERE (:branchId IS NULL OR o.branch.id = :branchId) " +
-           "AND (:from IS NULL OR o.createdAt >= :from) " +
+           "WHERE (:from IS NULL OR o.createdAt >= :from) " +
            "AND (:to IS NULL OR o.createdAt <= :to) " +
            "GROUP BY oio.itemOptionId, oio.optionGroupType")
     List<OptionReportResponse> getOptionsReport(
             @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to,
-            @Param("branchId") Long branchId
+            @Param("to") LocalDateTime to
     );
 }

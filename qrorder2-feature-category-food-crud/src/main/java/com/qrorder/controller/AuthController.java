@@ -47,8 +47,7 @@ public class AuthController {
                 "username", user.getUsername(),
                 "role", user.getRole().name(),
                 "authorities", auth.getAuthorities().stream()
-                        .map(a -> a.getAuthority()).toList(),
-                "branchId", user.getBranchId() != null ? user.getBranchId() : "null"
+                        .map(a -> a.getAuthority()).toList()
         ));
     }
 }

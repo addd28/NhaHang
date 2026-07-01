@@ -25,8 +25,7 @@ public class UserController {
 
     @PostMapping
     public Map<String, String> createUser(
-            @Valid @RequestBody CreateUserRequest request
-    ) {
+            @Valid @RequestBody CreateUserRequest request) {
         userService.createUser(request);
         return Map.of("message", "Create user success");
     }
@@ -34,8 +33,7 @@ public class UserController {
     @PutMapping("/{id}")
     public Map<String, String> updateUser(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateUserRequest request
-    ) {
+            @Valid @RequestBody UpdateUserRequest request) {
         userService.updateUser(id, request);
         return Map.of("message", "Update user success");
     }

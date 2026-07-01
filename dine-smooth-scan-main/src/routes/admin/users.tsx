@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "../../hooks/useAuth";
 import AdminLayout from "../../components/AdminLayout";
 import { userApi } from "../../api/userApi";
-import { branchApi } from "../../api/branchApi";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/users")({
@@ -24,8 +23,7 @@ function AdminUsers() {
   const [editId, setEditId] = useState<number | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"ADMIN" | "KITCHEN" | "WAITER" | "CASHIER" | "BRANCH_MANAGER">("WAITER");
-  const [branchId, setBranchId] = useState<number | null>(null);
+  const [role, setRole] = useState<"ADMIN" | "KITCHEN" | "WAITER" | "CASHIER">("WAITER");
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
@@ -46,11 +44,7 @@ function AdminUsers() {
     enabled: isAuthenticated && user?.role === "ADMIN",
   });
 
-  const { data: branchesList = [] } = useQuery({
-    queryKey: ["adminBranches"],
-    queryFn: branchApi.getBranches,
-    enabled: isAuthenticated && user?.role === "ADMIN",
-  });
+
 
   const totalPages = Math.ceil(usersList.length / itemsPerPage);
   const paginatedUsers = useMemo(() => {
@@ -104,7 +98,6 @@ function AdminUsers() {
     setUsername(u.username);
     setPassword(""); // Keep password blank unless they want to change it
     setRole(u.role);
-    setBranchId(u.branchId || null);
     setFormOpen(true);
   };
 
@@ -113,7 +106,6 @@ function AdminUsers() {
     setUsername("");
     setPassword("");
     setRole("WAITER");
-    setBranchId(null);
     setFormOpen(false);
   };
 
@@ -124,15 +116,9 @@ function AdminUsers() {
       return;
     }
 
-    if (role !== "ADMIN" && !branchId) {
-      toast.error("Vui lòng chọn chi nhánh cho nhân viên!");
-      return;
-    }
-
     const payload: any = {
       username: username.trim(),
-      role: role,
-      branchId: role === "ADMIN" ? null : Number(branchId)
+      role: role
     };
 
     if (password.trim()) {
@@ -154,8 +140,6 @@ function AdminUsers() {
     switch (role) {
       case "ADMIN":
         return "bg-red-500/10 text-red-500 border-red-500/20";
-      case "BRANCH_MANAGER":
-        return "bg-indigo-500/10 text-indigo-500 border-indigo-500/20";
       case "KITCHEN":
         return "bg-orange-500/10 text-orange-500 border-orange-500/20";
       case "WAITER":
@@ -221,36 +205,15 @@ function AdminUsers() {
                     onChange={(e) => {
                       const newRole = e.target.value as any;
                       setRole(newRole);
-                      if (newRole === "ADMIN") {
-                        setBranchId(null);
-                      }
                     }}
                     className="w-full h-10 px-4 rounded-xl border border-border bg-card text-sm focus:outline-none focus:border-primary"
                   >
                     <option value="ADMIN">ADMIN (Quản trị viên)</option>
-                    <option value="BRANCH_MANAGER">BRANCH_MANAGER (Quản lý chi nhánh)</option>
                     <option value="WAITER">WAITER (Phục vụ bàn)</option>
                     <option value="KITCHEN">KITCHEN (Bộ phận Bếp)</option>
                     <option value="CASHIER">CASHIER (Thu ngân)</option>
                   </select>
                 </div>
-                {role !== "ADMIN" && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Chi nhánh *</label>
-                    <select
-                      value={branchId || ""}
-                      onChange={(e) => setBranchId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full h-10 px-4 rounded-xl border border-border bg-card text-sm focus:outline-none focus:border-primary"
-                    >
-                      <option value="">-- Chọn chi nhánh --</option>
-                      {branchesList.map((b: any) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
 
               <div className="flex gap-2 justify-end pt-2">
@@ -283,7 +246,6 @@ function AdminUsers() {
                     <th className="p-4 text-left">Mã nhân viên</th>
                     <th className="p-4 text-left">Tên tài khoản</th>
                     <th className="p-4 text-left">Trạng thái quyền</th>
-                    <th className="p-4 text-left">Chi nhánh</th>
                     <th className="p-4 text-left">Trạng thái hệ thống</th>
                     <th className="p-4 text-right">Hành động</th>
                   </tr>
@@ -297,9 +259,6 @@ function AdminUsers() {
                         <Badge variant="outline" className={`font-bold uppercase tracking-wider text-[10px] px-2.5 py-0.5 ${getRoleBadge(u.role)}`}>
                           {u.role}
                         </Badge>
-                      </td>
-                      <td className="p-4 text-xs font-medium text-muted-foreground">
-                        {u.branchName || "Tất cả"}
                       </td>
                       <td className="p-4 items-center gap-1.5 text-xs text-success font-semibold">
                         <span className="flex items-center gap-1"><UserCheck className="h-4 w-4 text-success" /> Hoạt động</span>

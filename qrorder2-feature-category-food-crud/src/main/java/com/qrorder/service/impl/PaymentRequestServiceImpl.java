@@ -24,6 +24,19 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
     private final RestaurantTableRepository tableRepository;
     private final ReservationRepository reservationRepository;
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+
+    @org.springframework.beans.factory.annotation.Value("${payment.bank.code}")
+    private String bankCode;
+
+    @org.springframework.beans.factory.annotation.Value("${payment.bank.name}")
+    private String bankName;
+
+    @org.springframework.beans.factory.annotation.Value("${payment.bank.account}")
+    private String bankAccount;
+
+    @org.springframework.beans.factory.annotation.Value("${payment.bank.owner}")
+    private String bankOwner;
 
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
@@ -48,15 +61,36 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
         // Tính tổng tiền từ món đã SERVED
         BigDecimal amount = calculateAmount(sessionId);
 
+        String txCode = generateTransactionCode();
+        String qr = null;
+        if (method == PaymentMethod.QR) {
+            try {
+                String ownerEncoded = java.net.URLEncoder.encode(bankOwner, "UTF-8");
+                qr = String.format("https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=%s&accountName=%s",
+                        bankCode, bankAccount, amount.longValue(), txCode, ownerEncoded);
+            } catch (Exception e) {
+                qr = String.format("https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=%s",
+                        bankCode, bankAccount, amount.longValue(), txCode);
+            }
+        }
+
         PaymentRequest request = PaymentRequest.builder()
                 .session(session)
                 .table(session.getTable())
-                .branch(session.getBranch())
                 .amount(amount)
                 .paymentMethod(method)
                 .status(PaymentRequestStatus.PENDING)
+                .paymentStatus("PENDING")
                 .requestedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .expiredAt(LocalDateTime.now().plusMinutes(15))
                 .alreadyPaid(alreadyPaid)
+                .transactionCode(txCode)
+                .bankName(method == PaymentMethod.QR ? bankName : null)
+                .bankAccount(method == PaymentMethod.QR ? bankAccount : null)
+                .accountName(method == PaymentMethod.QR ? bankOwner : null)
+                .transferContent(txCode)
+                .qrUrl(qr)
                 .build();
 
         request = paymentRequestRepository.save(request);
@@ -64,15 +98,10 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
     }
 
     @Override
-    public List<PaymentRequestResponse> getPendingRequests(Long branchId) {
-        List<PaymentRequest> list;
-        if (branchId != null) {
-            list = paymentRequestRepository
-                    .findByBranchIdAndStatusOrderByRequestedAtDesc(branchId, PaymentRequestStatus.PENDING);
-        } else {
-            list = paymentRequestRepository
-                    .findByStatusOrderByRequestedAtDesc(PaymentRequestStatus.PENDING);
-        }
+    public List<PaymentRequestResponse> getPendingRequests() {
+        // Single restaurant: always return all PENDING
+        List<PaymentRequest> list = paymentRequestRepository
+                .findByStatusOrderByRequestedAtDesc(PaymentRequestStatus.PENDING);
         return list.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
@@ -93,11 +122,12 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
         if (!paymentRepository.existsBySessionId(session.getId())) {
             Payment payment = Payment.builder()
                     .session(session)
-                    .branch(session.getBranch())
                     .amount(pr.getAmount().doubleValue())
                     .paidAt(LocalDateTime.now())
                     .paymentMethod(pr.getPaymentMethod())
                     .paymentStatus(PaymentStatus.SUCCESS)
+                    .transactionCode(pr.getTransactionCode())
+                    .paymentRequestId(pr.getId())
                     .build();
             paymentRepository.save(payment);
         }
@@ -135,19 +165,59 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
                 }
             });
             reservationRepository.saveAll(reservations);
-
-            if (tableService != null) {
-                tableService.promoteWaitlist();
-            }
+            // Waitlist promotion removed
         }
 
         // Cập nhật PaymentRequest
         pr.setStatus(PaymentRequestStatus.CONFIRMED);
+        pr.setPaymentStatus("SUCCESS");
         pr.setConfirmedAt(LocalDateTime.now());
         pr.setConfirmedByUserId(cashierUserId);
+
+        String cashierUsername = "System";
+        if (cashierUserId != null) {
+            cashierUsername = userRepository.findById(cashierUserId)
+                    .map(User::getUsername)
+                    .orElse("System");
+        }
+        pr.setConfirmedBy(cashierUsername);
+
         pr = paymentRequestRepository.save(pr);
 
         return toResponse(pr);
+    }
+
+    @Override
+    @Transactional
+    public PaymentRequestResponse cancelRequest(Long requestId, Long cashierUserId) {
+        PaymentRequest pr = paymentRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("PaymentRequest not found"));
+
+        if (pr.getStatus() != PaymentRequestStatus.PENDING) {
+            throw new RuntimeException("Request is not in PENDING state");
+        }
+
+        pr.setStatus(PaymentRequestStatus.CANCELLED);
+        pr.setPaymentStatus("CANCELLED");
+        pr.setConfirmedAt(LocalDateTime.now());
+        pr.setConfirmedByUserId(cashierUserId);
+
+        String cashierUsername = "System";
+        if (cashierUserId != null) {
+            cashierUsername = userRepository.findById(cashierUserId)
+                    .map(User::getUsername)
+                    .orElse("System");
+        }
+        pr.setConfirmedBy(cashierUsername);
+
+        pr = paymentRequestRepository.save(pr);
+        return toResponse(pr);
+    }
+
+    @Override
+    public java.util.Optional<PaymentRequestResponse> getActiveRequest(Long sessionId) {
+        return paymentRequestRepository.findBySessionIdAndStatus(sessionId, PaymentRequestStatus.PENDING)
+                .map(this::toResponse);
     }
 
     @Override
@@ -156,6 +226,25 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private synchronized String generateTransactionCode() {
+        java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd");
+        String dateStr = LocalDateTime.now().format(dtf);
+        String prefix = "PAY-" + dateStr + "-";
+
+        String maxCode = paymentRequestRepository.findMaxTransactionCodeByPrefix(prefix + "%");
+        int nextSeq = 1;
+        if (maxCode != null && maxCode.length() > prefix.length()) {
+            try {
+                String seqStr = maxCode.substring(prefix.length());
+                nextSeq = Integer.parseInt(seqStr) + 1;
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+
+        return prefix + String.format("%04d", nextSeq);
+    }
 
     private BigDecimal calculateAmount(Long sessionId) {
         List<Order> orders = orderRepository.findBySessionId(sessionId);
@@ -180,7 +269,6 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
                 .id(pr.getId())
                 .sessionId(pr.getSession() != null ? pr.getSession().getId() : null)
                 .tableNumber(pr.getTable() != null ? pr.getTable().getTableNumber() : null)
-                .branchName(pr.getBranch() != null ? pr.getBranch().getName() : null)
                 .amount(pr.getAmount())
                 .paymentMethod(pr.getPaymentMethod() != null ? pr.getPaymentMethod().name() : null)
                 .status(pr.getStatus() != null ? pr.getStatus().name() : null)
@@ -188,6 +276,23 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
                 .confirmedAt(pr.getConfirmedAt())
                 .confirmedByUserId(pr.getConfirmedByUserId())
                 .alreadyPaid(pr.isAlreadyPaid())
+                .transactionCode(pr.getTransactionCode())
+                .paymentStatus(pr.getPaymentStatus())
+                .bankName(pr.getBankName())
+                .bankAccount(pr.getBankAccount())
+                .accountName(pr.getAccountName())
+                .qrUrl(pr.getQrUrl())
+                .transferContent(pr.getTransferContent())
+                .createdAt(pr.getCreatedAt())
+                .expiredAt(pr.getExpiredAt())
+                .confirmedBy(pr.getConfirmedBy())
                 .build();
+     }
+
+    @Override
+    public PaymentRequestResponse getRequest(Long id) {
+        return paymentRequestRepository.findById(id)
+                .map(this::toResponse)
+                .orElseThrow(() -> new RuntimeException("PaymentRequest not found"));
     }
 }

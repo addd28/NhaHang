@@ -19,20 +19,10 @@ public class WaiterController {
 
     private final OrderService orderService;
     private final OrderItemRepository orderItemRepository;
-    private final com.qrorder.repository.UserRepository userRepository;
 
     @GetMapping("/order-requests")
     public ResponseEntity<List<OrderItemResponse>> getOrderRequests() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        Long branchId = null;
-        if (auth != null && auth.isAuthenticated()) {
-            com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-            if (user != null && user.getBranch() != null) {
-                branchId = user.getBranch().getId();
-            }
-        }
-
-        List<OrderItem> items = orderItemRepository.findByStatusAndBranchId(OrderItemStatus.WAIT_CONFIRM, branchId);
+        List<OrderItem> items = orderItemRepository.findByStatusForWaiter(OrderItemStatus.WAIT_CONFIRM);
         List<OrderItemResponse> response = items.stream().map(item ->
                 OrderItemResponse.builder()
                         .itemId(item.getId())

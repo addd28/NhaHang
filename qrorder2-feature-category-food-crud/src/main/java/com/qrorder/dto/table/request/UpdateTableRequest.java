@@ -22,5 +22,4 @@ public class UpdateTableRequest {
     )
     private Integer capacity;
 
-    private Long branchId;
 }

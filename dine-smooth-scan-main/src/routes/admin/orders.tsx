@@ -12,6 +12,11 @@ import { menuApi } from "../../api/menuApi";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
+const formatPrice = (val?: number | null) => {
+  if (val === null || val === undefined) return "0 đ";
+  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+};
+
 export const Route = createFileRoute("/admin/orders")({
   component: AdminOrders,
 });
@@ -32,7 +37,7 @@ function AdminOrders() {
   useEffect(() => {
     if (!isAuthenticated) {
       navigate({ to: "/admin/login" });
-    } else if (user && user.role !== "ADMIN" && user.role !== "WAITER" && user.role !== "BRANCH_MANAGER") {
+    } else if (user && user.role !== "ADMIN" && user.role !== "WAITER") {
       toast.error("Bạn không có quyền truy cập trang Phục vụ!");
       navigate({ to: "/" });
     }
@@ -43,7 +48,7 @@ function AdminOrders() {
     queryKey: ["serviceTables"],
     queryFn: orderApi.getServiceTables,
     refetchInterval: 5000,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "WAITER" || user?.role === "BRANCH_MANAGER"),
+    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "WAITER"),
   });
 
   // Query new order requests (WAIT_CONFIRM items)
@@ -51,14 +56,14 @@ function AdminOrders() {
     queryKey: ["newRequests"],
     queryFn: orderApi.getNewRequests,
     refetchInterval: 5000,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "WAITER" || user?.role === "BRANCH_MANAGER"),
+    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "WAITER"),
   });
 
   // Query all menu items for replacement options
   const { data: menuItems = [] } = useQuery({
     queryKey: ["replacementMenuItems"],
     queryFn: menuApi.getMenuItems,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "WAITER" || user?.role === "BRANCH_MANAGER"),
+    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "WAITER"),
   });
 
   const updateStatusMutation = useMutation({
@@ -90,7 +95,7 @@ function AdminOrders() {
     }
   });
 
-  if (!isAuthenticated || (user && user.role !== "ADMIN" && user.role !== "WAITER" && user.role !== "BRANCH_MANAGER")) {
+  if (!isAuthenticated || (user && user.role !== "ADMIN" && user.role !== "WAITER")) {
     return null;
   }
 
@@ -340,7 +345,7 @@ function AdminOrders() {
                 >
                   {menuItems.map((f: any) => (
                     <option key={f.id} value={f.id} disabled={!f.available}>
-                      {f.name} {f.available ? "" : "(Hết hàng)"} - ${f.price.toFixed(2)}
+                      {f.name} {f.available ? "" : "(Hết hàng)"} - {formatPrice(f.price)}
                     </option>
                   ))}
                 </select>

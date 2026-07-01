@@ -26,7 +26,6 @@ export interface PaymentRequestItem {
   id: number;
   sessionId: number;
   tableNumber: number;
-  branchName: string;
   amount: number;
   paymentMethod: string; // CASH | QR | PAYPAL
   status: string;        // PENDING | CONFIRMED | CANCELLED
@@ -34,6 +33,16 @@ export interface PaymentRequestItem {
   confirmedAt?: string;
   confirmedByUserId?: number;
   alreadyPaid: boolean;  // true = PayPal đã thanh toán, chỉ cần xác nhận đóng bàn
+  transactionCode?: string;
+  paymentStatus?: string;
+  bankName?: string;
+  bankAccount?: string;
+  accountName?: string;
+  qrUrl?: string;
+  transferContent?: string;
+  createdAt?: string;
+  expiredAt?: string;
+  confirmedBy?: string;
 }
 
 export const paymentApi = {
@@ -53,19 +62,18 @@ export const paymentApi = {
   /**
    * [NEW] Khách gửi yêu cầu thanh toán — KHÔNG đóng session.
    */
-  requestPayment: async (sessionId: number, paymentMethod: string): Promise<{ success: boolean; message: string; requestId: number }> => {
-    const response = await axiosInstance.post(`/payments/request`, {
-      sessionId,
-      paymentMethod,
+  requestPayment: async (sessionId: number, paymentMethod: string): Promise<PaymentRequestItem> => {
+    const response = await axiosInstance.post<PaymentRequestItem>(`/payments/request/${sessionId}`, null, {
+      params: { paymentMethod },
     });
     return response.data;
   },
 
   /**
-   * Kiểm tra session đã có PENDING request chưa (tránh gửi 2 lần).
+   * Kiểm tra session đã có PENDING request chưa.
    */
-  checkPendingRequest: async (sessionId: number): Promise<{ hasPending: boolean }> => {
-    const response = await axiosInstance.get(`/payments/request/status`, {
+  checkPendingRequest: async (sessionId: number): Promise<{ hasPending: boolean, request?: PaymentRequestItem }> => {
+    const response = await axiosInstance.get<{ hasPending: boolean, request?: PaymentRequestItem }>(`/payments/request/status`, {
       params: { sessionId },
     });
     return response.data;
@@ -97,8 +105,56 @@ export const paymentApi = {
   /**
    * [NEW] Cashier xác nhận đã nhận tiền → đóng session → giải phóng bàn.
    */
-  confirmPaymentRequest: async (id: number): Promise<{ success: boolean; message: string }> => {
-    const response = await axiosInstance.post(`/cashier/payment-requests/${id}/confirm`);
+  confirmPaymentRequest: async (id: number): Promise<PaymentRequestItem> => {
+    const response = await axiosInstance.post<PaymentRequestItem>(`/payments/confirm/${id}`);
+    return response.data;
+  },
+
+  cancelPaymentRequest: async (id: number): Promise<PaymentRequestItem> => {
+    const response = await axiosInstance.post<PaymentRequestItem>(`/payments/cancel/${id}`);
+    return response.data;
+  },
+
+  getPaymentRequest: async (id: number): Promise<PaymentRequestItem> => {
+    const response = await axiosInstance.get<PaymentRequestItem>(`/payments/request/${id}`);
+    return response.data;
+  },
+
+  getPaymentHistoryFiltered: async (filters: any): Promise<any[]> => {
+    const response = await axiosInstance.get<any[]>("/payments/history", { params: filters });
+    return response.data;
+  },
+
+  getStatistics: async (filters: any): Promise<any> => {
+    const response = await axiosInstance.get<any>("/payments/statistics", { params: filters });
+    return response.data;
+  },
+
+  getTopItems: async (filters: any): Promise<any[]> => {
+    const response = await axiosInstance.get<any[]>("/payments/top-items", { params: filters });
+    return response.data;
+  },
+
+  exportExcel: async (filters: any): Promise<Blob> => {
+    const response = await axiosInstance.get("/payments/export/excel", {
+      params: filters,
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  exportPdf: async (filters: any): Promise<Blob> => {
+    const response = await axiosInstance.get("/payments/export/pdf", {
+      params: filters,
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  getInvoicePdf: async (paymentId: number): Promise<Blob> => {
+    const response = await axiosInstance.get(`/payments/${paymentId}/invoice`, {
+      responseType: "blob",
+    });
     return response.data;
   },
 };

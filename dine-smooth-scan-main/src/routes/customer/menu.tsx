@@ -5,7 +5,7 @@ import {
   Bell, ShoppingBag, Shield, Minus, Plus, Star, X,
   ChefHat, Clock, Soup, Sparkles, Sun, Moon, ChevronRight,
   Flame, UtensilsCrossed, QrCode, Trash2, Banknote, CreditCard, Wallet,
-  CheckCircle2, MessageSquare, Search, AlertTriangle
+  CheckCircle2, MessageSquare, Search, AlertTriangle, Lock, Copy, AlertCircle
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,11 @@ import { paymentApi } from "../../api/paymentApi";
 import { MenuItem, CartItem, OrderItem, OptionGroup, ItemOption } from "../../types";
 import axiosInstance from "../../api/axiosInstance";
 import logoImg from "../../assets/logo.png";
+
+const formatPrice = (val?: number | null) => {
+  if (val === null || val === undefined) return "0 đ";
+  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+};
 
 const menuSearchSchema = z.object({
   tableKey: z.string().optional(),
@@ -387,6 +392,12 @@ function CustomerMenu() {
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"CASH" | "QR" | "PAYPAL">("CASH");
   const [paymentRequestSent, setPaymentRequestSent] = useState(false);
+  const [showVietQRDialog, setShowVietQRDialog] = useState(false);
+
+  const handleCopy = (text: string, message: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(message);
+  };
 
   // Kiểm tra xem session đã có PENDING payment request chưa
   const { data: pendingStatus, refetch: refetchPending } = useQuery({
@@ -397,6 +408,7 @@ function CustomerMenu() {
   });
 
   const hasPendingRequest = pendingStatus?.hasPending || paymentRequestSent;
+  const activePaymentRequest = pendingStatus?.request;
 
   // Mutation: gửi yêu cầu thanh toán (KHÔNG đóng session)
   const customerCheckoutMutation = useMutation({
@@ -404,11 +416,15 @@ function CustomerMenu() {
       if (!sessionId) throw new Error("Không tìm thấy phiên.");
       return paymentApi.requestPayment(Number(sessionId), selectedPaymentMethod);
     },
-    onSuccess: () => {
-      toast.success("✅ Yêu cầu thanh toán đã được gửi! Thu ngân sẽ xác nhận sớm.");
+    onSuccess: (data: any) => {
       setPaymentRequestSent(true);
       setShowCheckoutConfirm(false);
       refetchPending();
+      if (selectedPaymentMethod === "QR") {
+        setShowVietQRDialog(true);
+      } else {
+        toast.success("✅ Yêu cầu thanh toán đã được gửi! Thu ngân sẽ xác nhận sớm.");
+      }
     },
     onError: (error: any) => {
       const errMsg = error.response?.data?.message || error.message || "Không thể gửi yêu cầu thanh toán.";
@@ -699,7 +715,7 @@ function CustomerMenu() {
                             <Plus className="h-2 w-2" />
                           </button>
                         </div>
-                        <p className="text-xs font-bold text-foreground">${(c.unitPrice * c.quantity).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-foreground">{formatPrice(c.unitPrice * c.quantity)}</p>
                       </div>
                     </div>
                   </li>
@@ -714,7 +730,7 @@ function CustomerMenu() {
             <div className="space-y-3">
               <div className="flex justify-between items-baseline text-xs px-1">
                 <span className="text-muted-foreground font-semibold">Tạm tính:</span>
-                <span className="font-display font-bold text-lg text-primary">${totals.subtotal.toFixed(2)}</span>
+                <span className="font-display font-bold text-lg text-primary">{formatPrice(totals.subtotal)}</span>
               </div>
               <Button
                 onClick={() => {
@@ -825,7 +841,7 @@ function CustomerMenu() {
                             </Badge>
                           </div>
                           <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                            <p className="font-bold text-foreground">${((group.price || 0) * group.totalQuantity).toFixed(2)}</p>
+                            <p className="font-bold text-foreground">{formatPrice((group.price || 0) * group.totalQuantity)}</p>
                             <span>{formatTime(group.orderedTime)}</span>
                           </div>
                         </div>
@@ -868,15 +884,15 @@ function CustomerMenu() {
               <div className="space-y-1.5 text-xs px-1 border-b border-border/40 pb-2">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Tạm tính món ăn:</span>
-                  <span>${orderedTotals.subtotal.toFixed(2)}</span>
+                  <span>{formatPrice(orderedTotals.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground text-[10px]">
                   <span>Phí dịch vụ (5%) + Thuế (8%):</span>
-                  <span>${(orderedTotals.service + orderedTotals.tax).toFixed(2)}</span>
+                  <span>{formatPrice(orderedTotals.service + orderedTotals.tax)}</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-1">
                   <span className="font-semibold text-foreground">Tổng cộng hóa đơn:</span>
-                  <span className="font-display font-bold text-lg text-success">${orderedTotals.total.toFixed(2)}</span>
+                  <span className="font-display font-bold text-lg text-success">{formatPrice(orderedTotals.total)}</span>
                 </div>
               </div>
 
@@ -887,6 +903,17 @@ function CustomerMenu() {
                   </div>
                   <p className="text-xs font-bold text-amber-600">Yêu cầu thanh toán đã được gửi</p>
                   <p className="text-[10px] text-amber-500/80">Vui lòng chờ thu ngân xác nhận và đóng bàn</p>
+                  {activePaymentRequest?.paymentMethod === "QR" && (
+                    <Button 
+                      onClick={() => {
+                        setShowVietQRDialog(true);
+                        setShowOrderedItemsSheet(false);
+                      }}
+                      className="mt-2 h-9 px-4 rounded-full bg-primary hover:text-black hover:bg-primary/90 text-primary-foreground font-bold text-xs cursor-pointer shadow-soft border-none"
+                    >
+                      Xem mã QR thanh toán
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Button
@@ -937,7 +964,7 @@ function CustomerMenu() {
       if (matchedOpt) {
         selectedOptIds = [matchedOpt.id];
         optionPrice = matchedOpt.price;
-        toppings = [matchedOpt.price > 0 ? `${matchedOpt.name} (+$${matchedOpt.price.toFixed(2)})` : matchedOpt.name];
+        toppings = [matchedOpt.price > 0 ? `${matchedOpt.name} (+${formatPrice(matchedOpt.price)})` : matchedOpt.name];
       }
     }
 
@@ -1178,7 +1205,7 @@ function CustomerMenu() {
                       </div>
                       <span className="text-xs text-muted-foreground">{items.length} món</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 md:gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-2 md:gap-4">
                       {items.map((m) => (
                         <article
                           key={m.id}
@@ -1205,7 +1232,7 @@ function CustomerMenu() {
 
                             {/* Price & Quantity Adjuster */}
                             <div className="mt-3 sm:mt-4 flex items-center justify-between border-t border-border/40 pt-2 sm:pt-3">
-                              <span className="text-sm sm:text-base font-bold text-foreground">${m.price.toFixed(2)}</span>
+                              <span className="text-sm sm:text-base font-bold text-foreground">{formatPrice(m.price)}</span>
                               {(() => {
                                 const itemCartQty = cart.filter(c => c.item.id === m.id).reduce((sum, c) => sum + c.quantity, 0);
                                 return itemCartQty > 0 ? (
@@ -1313,15 +1340,15 @@ function CustomerMenu() {
                 <div className="p-4 rounded-2xl bg-accent/20 border border-border/40 space-y-1.5 text-xs">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Tạm tính:</span>
-                    <span className="font-semibold">${orderedTotals.subtotal.toFixed(2)}</span>
+                    <span className="font-semibold">{formatPrice(orderedTotals.subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Phí dịch vụ + Thuế:</span>
-                    <span className="font-semibold">${(orderedTotals.service + orderedTotals.tax).toFixed(2)}</span>
+                    <span className="font-semibold">{formatPrice(orderedTotals.service + orderedTotals.tax)}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1 border-t border-border/40">
                     <span className="font-bold text-sm text-foreground">Tổng thanh toán:</span>
-                    <span className="font-display text-xl font-bold text-success">${orderedTotals.total.toFixed(2)}</span>
+                    <span className="font-display text-xl font-bold text-success">{formatPrice(orderedTotals.total)}</span>
                   </div>
                 </div>
 
@@ -1422,6 +1449,101 @@ function CustomerMenu() {
             </DialogContent>
           </Dialog>
 
+          {/* VietQR Payment Details Dialog */}
+          <Dialog open={showVietQRDialog} onOpenChange={setShowVietQRDialog}>
+            <DialogContent className="max-w-md w-[92vw] sm:w-full bg-card border border-border p-4 sm:p-6 rounded-3xl text-left text-foreground">
+              <DialogTitle className="font-display text-lg sm:text-xl font-bold flex items-center gap-2 border-b border-border/60 pb-2 sm:pb-3">
+                <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-primary animate-pulse" /> Thanh toán VietQR
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Thông tin thanh toán chuyển khoản VietQR cho hóa đơn của bạn.
+              </DialogDescription>
+              {activePaymentRequest && (
+                <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+                  {/* QR Image */}
+                  <div className="flex flex-col items-center justify-center p-2.5 sm:p-4 bg-white rounded-2xl border border-gray-100 shadow-soft">
+                    {activePaymentRequest.qrUrl ? (
+                      <img 
+                        src={activePaymentRequest.qrUrl} 
+                        alt="Mã QR thanh toán VietQR" 
+                        className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
+                      />
+                    ) : (
+                      <div className="w-36 h-36 sm:w-44 sm:h-44 bg-accent/20 rounded-xl flex items-center justify-center text-[10px] sm:text-xs text-muted-foreground animate-pulse">
+                        Đang tạo mã QR...
+                      </div>
+                    )}
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground mt-1.5 sm:mt-2 font-mono flex items-center gap-1">
+                      <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-success" /> Giao dịch bảo mật bằng VietQR
+                    </span>
+                  </div>
+
+                  {/* Total Amount */}
+                  <div className="text-center bg-primary/5 border border-primary/10 rounded-2xl p-2.5 sm:p-4">
+                    <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Tổng tiền thanh toán</p>
+                    <p className="font-display text-lg sm:text-xl font-bold text-primary mt-0.5 sm:mt-1">
+                      {formatPrice(activePaymentRequest.amount)}
+                    </p>
+                  </div>
+
+                  {/* Transfer Details */}
+                  <div className="bg-accent/25 border border-border/40 rounded-2xl p-2.5 sm:p-4 space-y-2 sm:space-y-2.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Ngân hàng:</span>
+                      <span className="font-bold">{activePaymentRequest.bankName || "MB Bank"}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5 sm:pt-2">
+                      <span className="text-muted-foreground">Chủ tài khoản:</span>
+                      <span className="font-bold">{activePaymentRequest.accountName || "CHILL CLUB"}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5 sm:pt-2">
+                      <span className="text-muted-foreground">Số tài khoản:</span>
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <span className="font-mono">{activePaymentRequest.bankAccount || "0123456789"}</span>
+                        <button 
+                          onClick={() => handleCopy(activePaymentRequest.bankAccount || "0123456789", "Đã sao chép số tài khoản!")}
+                          className="p-1 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
+                          title="Sao chép số tài khoản"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5 sm:pt-2">
+                      <span className="text-muted-foreground">Nội dung CK:</span>
+                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                        <span className="font-mono">{activePaymentRequest.transferContent || activePaymentRequest.transactionCode}</span>
+                        <button 
+                          onClick={() => handleCopy(activePaymentRequest.transferContent || activePaymentRequest.transactionCode || "", "Đã sao chép nội dung chuyển khoản!")}
+                          className="p-1 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
+                          title="Sao chép nội dung chuyển khoản"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Warning */}
+                  <div className="bg-warning/10 border border-warning/20 text-warning rounded-2xl p-2.5 sm:p-4 text-[10px] sm:text-[11px] leading-relaxed flex gap-2 items-start">
+                    <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 mt-0.5" />
+                    <p>
+                      <strong>Lưu ý:</strong> Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống đối chiếu. Sau khi chuyển khoản hãy chờ nhân viên xác nhận.
+                    </p>
+                  </div>
+
+                  {/* Footer Action */}
+                  <Button
+                    onClick={() => setShowVietQRDialog(false)}
+                    className="w-full h-10 sm:h-11 rounded-full bg-gradient-primary text-primary-foreground font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs flex items-center justify-center gap-1.5"
+                  >
+                    Tôi đã chuyển khoản
+                  </Button>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
           {/* Ordered Item Timeline Modal */}
           <Dialog open={!!selectedOrderItem} onOpenChange={() => setSelectedOrderItem(null)}>
             <DialogContent className="max-w-md bg-card border border-border p-6 rounded-3xl text-left">
@@ -1450,11 +1572,11 @@ function CustomerMenu() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Đơn giá:</span>
-                      <span className="font-semibold">${selectedOrderItem.price?.toFixed(2) || "0.00"}</span>
+                      <span className="font-semibold">{formatPrice(selectedOrderItem.price)}</span>
                     </div>
                     <div className="flex justify-between border-b border-border/40 pb-3">
                       <span className="text-muted-foreground">Tổng cộng:</span>
-                      <span className="font-bold text-primary">${((selectedOrderItem.price || 0) * selectedOrderItem.quantity).toFixed(2)}</span>
+                      <span className="font-bold text-primary">{formatPrice((selectedOrderItem.price || 0) * selectedOrderItem.quantity)}</span>
                     </div>
                   </div>
 
@@ -1519,7 +1641,7 @@ function CustomerMenu() {
                   <ShoppingBag className="h-4 w-4" />
                   <span>Giỏ hàng ({cartCount})</span>
                 </div>
-                <span className="font-display font-bold text-sm">${totals.subtotal.toFixed(2)}</span>
+                <span className="font-display font-bold text-sm">{formatPrice(totals.subtotal)}</span>
               </Button>
             </div>
           )}
@@ -1674,7 +1796,7 @@ function MenuItemDetail({
       const selected = selectedOptions[Number(g.id)] || [];
       g.options.forEach((o) => {
         if (selected.includes(Number(o.id))) {
-          const label = o.price > 0 ? `${o.name} (+$${o.price.toFixed(2)})` : o.name;
+          const label = o.price > 0 ? `${o.name} (+${formatPrice(o.price)})` : o.name;
           toppings.push(label);
         }
       });
@@ -1758,7 +1880,7 @@ function MenuItemDetail({
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-0.5 sm:gap-2 text-left min-w-0">
                             <span className="font-semibold text-[10px] sm:text-xs leading-tight break-words">{opt.name}</span>
                             <span className="text-[9px] sm:text-[11px] text-muted-foreground shrink-0">
-                              {opt.price > 0 ? `+$${opt.price.toFixed(2)}` : "Miễn phí"}
+                              {opt.price > 0 ? `+${formatPrice(opt.price)}` : "Miễn phí"}
                             </span>
                           </div>
                         </OptionChip>
@@ -1794,7 +1916,7 @@ function MenuItemDetail({
                 onClick={handleAdd}
                 className="ml-auto h-12 flex-1 gap-2 rounded-full bg-gradient-primary text-primary-foreground shadow-elegant hover:opacity-95 cursor-pointer font-bold text-xs"
               >
-                Thêm · ${(unitPrice * qty).toFixed(2)}
+                Thêm · {formatPrice(unitPrice * qty)}
               </Button>
             </div>
           </div>

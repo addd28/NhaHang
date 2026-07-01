@@ -16,16 +16,12 @@ public class UserDTO {
     private Long id;
     private String username;
     private Role role;
-    private Long branchId;
-    private String branchName;
 
     public static UserDTO from(User user) {
         return UserDTO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .role(user.getRole())
-                .branchId(user.getBranchId())
-                .branchName(user.getBranchName())
                 .build();
     }
 }

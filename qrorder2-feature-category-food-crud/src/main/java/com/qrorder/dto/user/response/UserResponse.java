@@ -10,6 +10,4 @@ public class UserResponse {
     private Long id;
     private String username;
     private Role role;
-    private Long branchId;
-    private String branchName;
 }

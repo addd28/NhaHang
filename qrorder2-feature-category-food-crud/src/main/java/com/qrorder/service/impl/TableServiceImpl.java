@@ -6,7 +6,6 @@ import com.qrorder.dto.table.request.ReserveTableRequest;
 import com.qrorder.dto.table.response.CheckInByCodeResponse;
 import com.qrorder.dto.table.response.TableResponse;
 
-import com.qrorder.entity.Branch;
 import com.qrorder.entity.Order;
 import com.qrorder.entity.OrderItem;
 import com.qrorder.entity.Reservation;
@@ -18,7 +17,6 @@ import com.qrorder.entity.enums.ReservationStatus;
 import com.qrorder.entity.enums.SessionStatus;
 import com.qrorder.entity.enums.TableStatus;
 
-import com.qrorder.repository.BranchRepository;
 import com.qrorder.repository.OrderItemRepository;
 import com.qrorder.repository.OrderRepository;
 import com.qrorder.repository.ReservationRepository;
@@ -57,8 +55,6 @@ public class TableServiceImpl
 
     private final OrderItemRepository orderItemRepository;
 
-    private final BranchRepository branchRepository;
-
     private final com.qrorder.repository.UserRepository userRepository;
 
     private TableResponse mapToResponse(RestaurantTable table) {
@@ -71,15 +67,10 @@ public class TableServiceImpl
         );
         response.setTableKey(table.getTableKey());
 
-        if (table.getBranch() != null) {
-            response.setBranchId(table.getBranch().getId());
-            response.setBranchName(table.getBranch().getName());
-        }
-
         if (table.getStatus() == TableStatus.RESERVED) {
             List<Reservation> reservations = reservationRepository.findByTableId(table.getId());
             reservations.stream()
-                    .filter(r -> r.getStatus() == ReservationStatus.PENDING || r.getStatus() == ReservationStatus.BOOKED)
+                    .filter(r -> r.getStatus() == ReservationStatus.BOOKED)
                     .findFirst()
                     .ifPresent(r -> {
                         response.setCustomerName(r.getCustomerName());
@@ -106,23 +97,9 @@ public class TableServiceImpl
             );
         }
 
-        if (request.getBranchId() == null) {
+        if (tableRepository.existsByTableNumber(request.getTableNumber())) {
             throw new RuntimeException(
-                    "Branch ID is required"
-            );
-        }
-
-        Branch branch = branchRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
-
-        boolean exists = tableRepository.existsByTableNumberAndBranchId(
-                request.getTableNumber(),
-                request.getBranchId()
-        );
-
-        if (exists) {
-            throw new RuntimeException(
-                    "Table number already exists in this branch"
+                    "Table number already exists"
             );
         }
 
@@ -132,7 +109,7 @@ public class TableServiceImpl
         for (int i = 0; i < 4; i++) {
             randomSuffix.append(chars.charAt(random.nextInt(chars.length())));
         }
-        String tableKey = "BR" + branch.getId() + "-TB" + request.getTableNumber() + "-" + randomSuffix.toString();
+        String tableKey = "TB" + request.getTableNumber() + "-" + randomSuffix.toString();
 
         RestaurantTable table =
                 RestaurantTable.builder()
@@ -149,9 +126,6 @@ public class TableServiceImpl
                         .tableKey(tableKey)
                         .status(
                                 TableStatus.EMPTY
-                        )
-                        .branch(
-                                branch
                         )
                         .build();
 
@@ -207,25 +181,11 @@ public class TableServiceImpl
             );
         }
 
-        // Check uniqueness per branch
-        if (request.getBranchId() != null && (table.getBranch() == null || !table.getBranch().getId().equals(request.getBranchId()))) {
-            Branch newBranch = branchRepository.findById(request.getBranchId())
-                    .orElseThrow(() -> new RuntimeException("Branch not found"));
-
-            if (tableRepository.existsByTableNumberAndBranchId(request.getTableNumber(), request.getBranchId())) {
-                throw new RuntimeException(
-                        "Table number already exists in the destination branch"
-                );
-            }
-            table.setBranch(newBranch);
-        } else {
-            if (!table.getTableNumber().equals(request.getTableNumber())
-                    && table.getBranch() != null
-                    && tableRepository.existsByTableNumberAndBranchId(request.getTableNumber(), table.getBranch().getId())) {
-                throw new RuntimeException(
-                        "Table number already exists in this branch"
-                );
-            }
+        if (!table.getTableNumber().equals(request.getTableNumber())
+                && tableRepository.existsByTableNumber(request.getTableNumber())) {
+            throw new RuntimeException(
+                    "Table number already exists"
+            );
         }
 
         table.setTableNumber(request.getTableNumber());
@@ -258,25 +218,9 @@ public class TableServiceImpl
 
 
     @Override
-    public List<TableResponse> getTables(Long branchId) {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated()) {
-            boolean isBranchManager = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_BRANCH_MANAGER"));
-            if (isBranchManager) {
-                com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-                if (user != null && user.getBranch() != null) {
-                    branchId = user.getBranch().getId();
-                }
-            }
-        }
-
-        List<RestaurantTable> tables;
-        if (branchId != null) {
-            tables = tableRepository.findByBranchId(branchId);
-        } else {
-            tables = tableRepository.findAll();
-        }
+    public List<TableResponse> getTables() {
+        // Single restaurant: always return all tables
+        List<RestaurantTable> tables = tableRepository.findAll();
         return tables.stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -301,13 +245,6 @@ public class TableServiceImpl
             throw new RuntimeException("Table unavailable");
         }
 
-        Branch branch = branchRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
-
-        if (!table.getBranch().getId().equals(branch.getId())) {
-            throw new RuntimeException("Table does not belong to reservation branch");
-        }
-
         table.setStatus(TableStatus.RESERVED);
         tableRepository.save(table);
 
@@ -324,9 +261,8 @@ public class TableServiceImpl
                 .guestCount(request.getGuestCount())
                 .reservationTime(request.getReservationTime())
                 .note(request.getNote())
-                .status(ReservationStatus.PENDING)
+                .status(ReservationStatus.BOOKED)
                 .createdAt(LocalDateTime.now())
-                .branch(branch)
                 .table(table)
                 .build();
 
@@ -337,8 +273,6 @@ public class TableServiceImpl
         result.put("reservationId", savedReservation.getId());
         result.put("confirmationCode", code);
         result.put("tableNumber", table.getTableNumber());
-        result.put("branchId", savedReservation.getBranch().getId());
-        result.put("branchName", savedReservation.getBranch().getName());
         result.put("status", savedReservation.getStatus().name());
         result.put("customerName", savedReservation.getCustomerName());
         return result;
@@ -359,8 +293,7 @@ public class TableServiceImpl
                 continue;
             }
             boolean isBlockingStatus = existing.getStatus() == ReservationStatus.BOOKED 
-                    || existing.getStatus() == ReservationStatus.SEATED
-                    || existing.getStatus() == ReservationStatus.PENDING;
+                    || existing.getStatus() == ReservationStatus.SEATED;
             if (isBlockingStatus) {
                 LocalDateTime extStart = existing.getTimeSlotStart() != null ? existing.getTimeSlotStart() : existing.getReservationTime();
                 LocalDateTime extEnd = existing.getTimeSlotEnd() != null ? existing.getTimeSlotEnd() : extStart.plusHours(2);
@@ -386,8 +319,12 @@ public class TableServiceImpl
     @Override
     @Transactional
     public Map<String, Object> reserveSlot(ReserveTableRequest request) {
-        Branch branch = branchRepository.findById(request.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+        LocalDateTime now = LocalDateTime.now();
+
+        // Validate: reservation must be at least 2 hours in the future
+        if (request.getReservationTime() != null && request.getReservationTime().isBefore(now.plusHours(2))) {
+            throw new RuntimeException("Đặt bàn phải trước ít nhất 2 giờ.");
+        }
 
         // Generate confirmation code for compatibility
         String legacyCode;
@@ -395,46 +332,15 @@ public class TableServiceImpl
             legacyCode = generateConfirmationCode();
         } while (reservationRepository.findByConfirmationCode(legacyCode).isPresent());
 
-        LocalDateTime now = LocalDateTime.now();
+        // Generate unique reservation code
+        String reservationCode;
+        do {
+            reservationCode = generateReservationCode();
+        } while (reservationRepository.findByReservationCode(reservationCode).isPresent());
+
         LocalDateTime timeSlotStart = request.getReservationTime();
         LocalDateTime timeSlotEnd = timeSlotStart.plusHours(2);
-
-        // Fetch all tables in the branch ordered by capacity
-        List<RestaurantTable> allTables = tableRepository.findByBranchIdForUpdate(branch.getId());
-        RestaurantTable assignedTable = null;
-
-        for (RestaurantTable t : allTables) {
-            if (t.getCapacity() >= request.getGuestCount()) {
-                if (isTableAvailableForSlot(t, timeSlotStart, timeSlotEnd, null)) {
-                    assignedTable = t;
-                    break;
-                }
-            }
-        }
-
-        String reservationCode = null;
-        ReservationStatus status;
-        LocalDateTime holdUntil = null;
-        LocalDateTime confirmedAt = null;
-
-        if (assignedTable != null) {
-            status = ReservationStatus.BOOKED;
-            holdUntil = timeSlotStart.isBefore(now) ? now.plusMinutes(15) : timeSlotStart.plusMinutes(15);
-            confirmedAt = now;
-            
-            // Generate unique reservation code
-            do {
-                reservationCode = generateReservationCode();
-            } while (reservationRepository.findByReservationCode(reservationCode).isPresent());
-
-            // If the reservation start time is within 30 minutes from now, update physical table status to RESERVED
-            if (!timeSlotStart.isAfter(now.plusMinutes(30))) {
-                assignedTable.setStatus(TableStatus.RESERVED);
-                tableRepository.save(assignedTable);
-            }
-        } else {
-            status = ReservationStatus.WAITLIST;
-        }
+        LocalDateTime holdUntil = timeSlotStart.plusMinutes(10);
 
         Reservation reservation = Reservation.builder()
                 .customerName(request.getCustomerName())
@@ -446,24 +352,21 @@ public class TableServiceImpl
                 .timeSlotStart(timeSlotStart)
                 .timeSlotEnd(timeSlotEnd)
                 .note(request.getNote())
-                .status(status)
+                .status(ReservationStatus.BOOKED)
                 .createdAt(now)
-                .confirmedAt(confirmedAt)
+                .confirmedAt(now)
                 .holdUntil(holdUntil)
-                .branch(branch)
-                .table(assignedTable)
+                .table(null)
                 .build();
 
         Reservation savedReservation = reservationRepository.save(reservation);
 
         Map<String, Object> result = new HashMap<>();
-        result.put("message", assignedTable != null ? "Reserve slot success" : "Added to waitlist");
+        result.put("message", "Reserve slot success");
         result.put("reservationId", savedReservation.getId());
         result.put("confirmationCode", legacyCode);
         result.put("reservationCode", reservationCode);
-        result.put("tableNumber", assignedTable != null ? assignedTable.getTableNumber() : null);
-        result.put("branchId", savedReservation.getBranch().getId());
-        result.put("branchName", savedReservation.getBranch().getName());
+        result.put("tableNumber", null);
         result.put("status", savedReservation.getStatus().name());
         result.put("customerName", savedReservation.getCustomerName());
         return result;
@@ -471,26 +374,19 @@ public class TableServiceImpl
 
     @Override
     public List<com.qrorder.dto.table.response.ReservationResponse> getReservations() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        Long userBranchId = null;
-        if (auth != null && auth.isAuthenticated()) {
-            boolean restrictsBranch = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_BRANCH_MANAGER")
-                            || a.getAuthority().equals("ROLE_WAITER")
-                            || a.getAuthority().equals("ROLE_CASHIER")
-                            || a.getAuthority().equals("ROLE_KITCHEN"));
-            if (restrictsBranch) {
-                com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-                if (user != null && user.getBranch() != null) {
-                    userBranchId = user.getBranch().getId();
-                }
-            }
-        }
-
-        final Long filterBranchId = userBranchId;
+        java.time.LocalDate today = java.time.LocalDate.now();
         return reservationRepository.findAll().stream()
-                .filter(r -> r.getStatus() == ReservationStatus.PENDING || r.getStatus() == ReservationStatus.BOOKED)
-                .filter(r -> filterBranchId == null || (r.getBranch() != null && r.getBranch().getId().equals(filterBranchId)))
+                .filter(r -> r.getStatus() == ReservationStatus.BOOKED)
+                .sorted((r1, r2) -> {
+                    java.time.LocalDate d1 = r1.getReservationTime().toLocalDate();
+                    java.time.LocalDate d2 = r2.getReservationTime().toLocalDate();
+                    boolean isToday1 = d1.isEqual(today);
+                    boolean isToday2 = d2.isEqual(today);
+
+                    if (isToday1 && !isToday2) return -1;
+                    if (!isToday1 && isToday2) return 1;
+                    return r1.getReservationTime().compareTo(r2.getReservationTime());
+                })
                 .map(r -> com.qrorder.dto.table.response.ReservationResponse.builder()
                         .id(r.getId())
                         .customerName(r.getCustomerName())
@@ -503,13 +399,10 @@ public class TableServiceImpl
                         .status(r.getStatus().name())
                         .createdAt(r.getCreatedAt())
                         .tableNumber(r.getTable() != null ? r.getTable().getTableNumber() : null)
-                        .branchId(r.getBranch() != null ? r.getBranch().getId() : null)
-                        .branchName(r.getBranch() != null ? r.getBranch().getName() : null)
                         .confirmedAt(r.getConfirmedAt())
                         .holdUntil(r.getHoldUntil())
                         .checkedInAt(r.getCheckedInAt())
                         .build())
-                .sorted(java.util.Comparator.comparing(com.qrorder.dto.table.response.ReservationResponse::getCreatedAt))
                 .toList();
     }
 
@@ -523,24 +416,18 @@ public class TableServiceImpl
                         "Mã xác nhận không hợp lệ hoặc đã được sử dụng!"
                 ));
 
-        if (reservation.getStatus() != ReservationStatus.PENDING
-                && reservation.getStatus() != ReservationStatus.BOOKED) {
+        if (reservation.getStatus() != ReservationStatus.BOOKED) {
             throw new RuntimeException(
                     "Mã xác nhận này đã được check-in hoặc đã bị huỷ!"
             );
         }
 
         RestaurantTable table = reservation.getTable();
-        if (table != null) {
-            if (table.getBranch() == null || !table.getBranch().getId().equals(reservation.getBranch().getId())) {
-                throw new RuntimeException("Bàn đã chọn không thuộc cùng chi nhánh với đặt chỗ!");
-            }
-        } else {
-            // Find an EMPTY table with capacity >= guestCount inside the same branch
+        if (table == null) {
+            // Find an EMPTY table with capacity >= guestCount
             List<RestaurantTable> emptyTables = tableRepository.findAll().stream()
-                    .filter(t -> t.getStatus() == TableStatus.EMPTY 
-                            && t.getCapacity() >= reservation.getGuestCount()
-                            && t.getBranch().getId().equals(reservation.getBranch().getId()))
+                    .filter(t -> t.getStatus() == TableStatus.EMPTY
+                            && t.getCapacity() >= reservation.getGuestCount())
                     .sorted(java.util.Comparator.comparingInt(RestaurantTable::getCapacity))
                     .toList();
 
@@ -555,7 +442,7 @@ public class TableServiceImpl
                         .phone(reservation.getPhone())
                         .guestCount(reservation.getGuestCount())
                         .preOrderCount(0)
-                        .message("Nhà hàng hiện tại đã hết bàn trống phù hợp! Khách hàng đã được xếp vào hàng đợi.")
+                        .message("Nhà hàng hiện tại đã hết bàn trống phù hợp!")
                         .build();
             }
             table = emptyTables.get(0);
@@ -620,49 +507,20 @@ public class TableServiceImpl
                     .getId();
         }
 
-        if (table.getStatus() != TableStatus.EMPTY && table.getStatus() != TableStatus.RESERVED) {
-            throw new RuntimeException(
-                    "Table is not empty or reserved"
-            );
-        }
+        // Allowed if there is no active session (even if table status is OCCUPIED due to previous mismatch)
 
         List<Reservation> reservations =
-
-                reservationRepository
-                        .findByTableId(
-                                tableId
-                        );
+                reservationRepository.findByTableId(tableId);
 
         Reservation activeReservation =
-
-                reservations
-                        .stream()
-                        .filter(reservation ->
-
-                                reservation.getStatus()
-                                        == ReservationStatus.PENDING
-
-                                        ||
-
-                                        reservation.getStatus()
-                                                == ReservationStatus.BOOKED
-                        )
+                reservations.stream()
+                        .filter(reservation -> reservation.getStatus() == ReservationStatus.BOOKED)
                         .findFirst()
                         .orElse(null);
 
         reservations.forEach(reservation -> {
-
-            if (reservation.getStatus()
-                    == ReservationStatus.PENDING
-
-                    ||
-
-                    reservation.getStatus()
-                            == ReservationStatus.BOOKED) {
-
-                reservation.setStatus(
-                        ReservationStatus.SEATED
-                );
+            if (reservation.getStatus() == ReservationStatus.BOOKED) {
+                reservation.setStatus(ReservationStatus.SEATED);
             }
         });
 
@@ -683,8 +541,6 @@ public class TableServiceImpl
                 TableSession.builder()
 
                         .table(table)
-
-                        .branch(table.getBranch())
 
                         .status(
                                 SessionStatus.OPEN
@@ -727,7 +583,6 @@ public class TableServiceImpl
             List<Order> preOrders = orderRepository.findByReservationId(activeReservation.getId());
             for (Order preOrder : preOrders) {
                 preOrder.setSession(savedSession);
-                preOrder.setBranch(savedSession.getBranch());
                 // Promote WAIT_CONFIRM items to PENDING so kitchen sees them
                 if (preOrder.getItems() != null) {
                     for (OrderItem item : preOrder.getItems()) {
@@ -765,7 +620,7 @@ public class TableServiceImpl
         if (table.getStatus() == TableStatus.RESERVED) {
             List<Reservation> reservations = reservationRepository.findByTableId(tableId);
             reservations.forEach(r -> {
-                if (r.getStatus() == ReservationStatus.PENDING || r.getStatus() == ReservationStatus.BOOKED) {
+                if (r.getStatus() == ReservationStatus.BOOKED) {
                     r.setStatus(ReservationStatus.CANCELLED);
                 }
             });
@@ -776,23 +631,25 @@ public class TableServiceImpl
                             tableId,
                             SessionStatus.OPEN
                     )
-                    .orElseThrow(
-                            () -> new RuntimeException(
-                                     "No active session found"
-                            )
-                    );
+                    .orElse(null);
 
-            session.setStatus(
-                    SessionStatus.CLOSED
-            );
+            if (session != null) {
+                session.setStatus(
+                        SessionStatus.CLOSED
+                );
 
-            session.setEndTime(
-                    LocalDateTime.now()
-            );
+                session.setEndTime(
+                        LocalDateTime.now()
+                );
 
-            tableSessionRepository.save(
-                    session
-            );
+                session.setClosedAt(
+                        LocalDateTime.now()
+                );
+
+                tableSessionRepository.save(
+                        session
+                );
+            }
         }
 
         table.setStatus(
@@ -803,7 +660,7 @@ public class TableServiceImpl
                 table
         );
 
-        promoteWaitlist();
+
     }
 
     @Override
@@ -812,10 +669,8 @@ public class TableServiceImpl
         Reservation reservation = reservationRepository.findByReservationCode(code.trim())
                 .orElseThrow(() -> new RuntimeException("Reservation code not found"));
 
-        if (reservation.getStatus() == ReservationStatus.WAITLIST) {
-            throw new RuntimeException("Customer is still on waitlist");
-        }
-        if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.CANCELLED_NO_SHOW) {
+
+        if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.NO_SHOW) {
             throw new RuntimeException("Reservation is no longer valid");
         }
         if (reservation.getStatus() == ReservationStatus.SEATED || reservation.getStatus() == ReservationStatus.COMPLETED) {
@@ -850,13 +705,8 @@ public class TableServiceImpl
         }
 
         Reservation reservation = resOpt.get();
-        if (reservation.getStatus() == ReservationStatus.WAITLIST) {
-            return com.qrorder.dto.table.response.AdminCheckInResponse.builder()
-                    .success(false)
-                    .message("Customer is still on waitlist")
-                    .build();
-        }
-        if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.CANCELLED_NO_SHOW) {
+
+        if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.NO_SHOW) {
             return com.qrorder.dto.table.response.AdminCheckInResponse.builder()
                     .success(false)
                     .message("Reservation is no longer valid")
@@ -915,59 +765,40 @@ public class TableServiceImpl
     }
 
     @Override
-    @Transactional
-    public void promoteWaitlist() {
-        LocalDateTime now = LocalDateTime.now();
-        List<Reservation> waitlist = reservationRepository.findByStatusOrderByCreatedAtAsc(ReservationStatus.WAITLIST);
-        
-        for (Reservation res : waitlist) {
-            LocalDateTime start = res.getTimeSlotStart() != null ? res.getTimeSlotStart() : res.getReservationTime();
-            LocalDateTime end = res.getTimeSlotEnd() != null ? res.getTimeSlotEnd() : start.plusHours(2);
-            
-            if (end.isBefore(now)) {
-                res.setStatus(ReservationStatus.CANCELLED);
-                reservationRepository.save(res);
-                continue;
-            }
-            
-            List<RestaurantTable> branchTables = tableRepository.findByBranchIdForUpdate(res.getBranch().getId());
-            RestaurantTable assignedTable = null;
-            for (RestaurantTable t : branchTables) {
-                if (t.getCapacity() >= res.getGuestCount()) {
-                    if (isTableAvailableForSlot(t, start, end, res.getId())) {
-                        assignedTable = t;
-                        break;
-                    }
-                }
-            }
-            
-            if (assignedTable != null) {
-                RestaurantTable lockedTable = tableRepository.findByIdForUpdate(assignedTable.getId()).orElse(null);
-                if (lockedTable != null) {
-                    res.setTable(lockedTable);
-                    res.setStatus(ReservationStatus.BOOKED);
-                    res.setHoldUntil(start.isBefore(now) ? now.plusMinutes(15) : start.plusMinutes(15));
-                    res.setConfirmedAt(now);
-                    
-                    String code;
-                    do {
-                        code = generateReservationCode();
-                    } while (reservationRepository.findByReservationCode(code).isPresent());
-                    res.setReservationCode(code);
-                    
-                    reservationRepository.save(res);
-                    
-                    if (!start.isAfter(now.plusMinutes(30))) {
-                        lockedTable.setStatus(TableStatus.RESERVED);
-                        tableRepository.save(lockedTable);
-                    }
-                }
-            }
+    public Map<String, Object> getOccupancy(java.time.LocalDateTime dateTime) {
+        LocalDateTime start = dateTime.minusHours(2);
+        LocalDateTime end = dateTime.plusHours(2);
+
+        List<Reservation> activeReservations = reservationRepository.findByReservationTimeBetween(start, end).stream()
+                .filter(r -> r.getStatus() == ReservationStatus.BOOKED || r.getStatus() == ReservationStatus.SEATED)
+                .toList();
+
+        long count = activeReservations.size();
+        long totalTables = tableRepository.count();
+        if (totalTables <= 0) totalTables = 20;
+
+        String status;
+        String message;
+
+        double ratio = (double) count / totalTables;
+        if (ratio < 0.7) {
+            status = "PLENTY";
+            message = "Còn nhiều chỗ";
+        } else if (ratio < 1.0) {
+            status = "NEAR_FULL";
+            message = "Khung giờ gần kín";
+        } else {
+            status = "CROWDED";
+            message = "Khung giờ đã rất đông. Nhà hàng sẽ ưu tiên sắp xếp bàn khi quý khách đến. Nếu có thay đổi nhân viên sẽ liên hệ.";
         }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", status);
+        result.put("message", message);
+        result.put("count", count);
+        result.put("totalTables", totalTables);
+        return result;
     }
-
-
-
     @Override
     public TableSession getActiveSessionByTableKey(String tableKey) {
         RestaurantTable table = tableRepository.findByTableKey(tableKey)
@@ -984,41 +815,269 @@ public class TableServiceImpl
     }
 
     @Override
-    public List<com.qrorder.dto.table.response.WaitlistResponse> getWaitlist() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        Long userBranchId = null;
-        if (auth != null && auth.isAuthenticated()) {
-            boolean restrictsBranch = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_BRANCH_MANAGER")
-                            || a.getAuthority().equals("ROLE_WAITER")
-                            || a.getAuthority().equals("ROLE_CASHIER")
-                            || a.getAuthority().equals("ROLE_KITCHEN"));
-            if (restrictsBranch) {
-                com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-                if (user != null && user.getBranch() != null) {
-                    userBranchId = user.getBranch().getId();
-                }
+    @Transactional
+    public void cancelReservation(Long id) {
+        Reservation res = reservationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đặt bàn."));
+
+        if (res.getStatus() == ReservationStatus.CANCELLED || res.getStatus() == ReservationStatus.NO_SHOW) {
+            return;
+        }
+
+        res.setStatus(ReservationStatus.CANCELLED);
+        RestaurantTable table = res.getTable();
+        if (table != null) {
+            RestaurantTable lockedTable = tableRepository.findByIdForUpdate(table.getId()).orElse(null);
+            if (lockedTable != null && lockedTable.getStatus() == TableStatus.RESERVED) {
+                lockedTable.setStatus(TableStatus.EMPTY);
+                tableRepository.save(lockedTable);
+            }
+        }
+        reservationRepository.save(res);
+    }
+
+    @Override
+    @Transactional
+    public com.qrorder.dto.table.response.AdminCheckInResponse checkInReservation(Long id, Long tableId) {
+        System.out.println("========== CHECK IN ==========");
+        System.out.println("Reservation ID = " + id);
+        System.out.println("Table ID = " + tableId);
+
+        // Validation 1: Reservation exists
+        Optional<Reservation> resOpt = reservationRepository.findById(id);
+        System.out.println("Reservation Present = " + resOpt.isPresent());
+        if (resOpt.isEmpty()) {
+            System.out.println("FAIL: reservation not found");
+            throw new com.qrorder.exception.CheckInException(
+                    "RESERVATION_NOT_FOUND",
+                    "Không tìm thấy đặt bàn với ID này.",
+                    org.springframework.http.HttpStatus.BAD_REQUEST
+            );
+        }
+        Reservation reservation = resOpt.get();
+        System.out.println("Reservation = " + reservation);
+        System.out.println("Reservation Status = " + reservation.getStatus());
+        System.out.println("Assigned Table = " + reservation.getTable());
+
+        // Validation 2: Reservation status == BOOKED
+        if (reservation.getStatus() != ReservationStatus.BOOKED) {
+            System.out.println("FAIL: reservation status is not BOOKED");
+            System.out.println("FAIL: reservation already checked in or cancelled");
+            throw new com.qrorder.exception.CheckInException(
+                    "INVALID_RESERVATION_STATUS",
+                    "Chỉ reservation BOOKED mới được check-in.",
+                    org.springframework.http.HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // Validation 3: Selected table exists
+        Optional<RestaurantTable> tableOpt = tableRepository.findByIdForUpdate(tableId);
+        System.out.println("Table Present = " + tableOpt.isPresent());
+        if (tableOpt.isEmpty()) {
+            System.out.println("FAIL: Selected table does not exist");
+            throw new com.qrorder.exception.CheckInException(
+                    "TABLE_NOT_FOUND",
+                    "Bàn không tồn tại.",
+                    org.springframework.http.HttpStatus.BAD_REQUEST
+            );
+        }
+        RestaurantTable lockedTable = tableOpt.get();
+        System.out.println("Selected Table = " + lockedTable);
+        System.out.println("Selected Table Status = " + lockedTable.getStatus());
+
+        // Validation 4: No ACTIVE TableSession exists
+        Optional<TableSession> activeSession = tableSessionRepository.findByTableIdAndStatus(tableId, SessionStatus.OPEN);
+        System.out.println("Active Session = " + activeSession.orElse(null));
+
+        if (activeSession.isPresent()) {
+            if (lockedTable.getStatus() == TableStatus.EMPTY) {
+                System.out.println("FAIL: Table state inconsistent: status=EMPTY activeSession exists");
+                throw new com.qrorder.exception.CheckInException(
+                        "TABLE_OCCUPIED",
+                        "Bàn vẫn còn một phiên sử dụng chưa đóng.",
+                        org.springframework.http.HttpStatus.CONFLICT
+                );
+            } else {
+                System.out.println("FAIL: table occupied");
+                throw new com.qrorder.exception.CheckInException(
+                        "TABLE_NOT_EMPTY",
+                        "Bàn đang được sử dụng.",
+                        org.springframework.http.HttpStatus.BAD_REQUEST
+                );
             }
         }
 
-        final Long filterBranchId = userBranchId;
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        
-        return reservationRepository.findByStatusOrderByCreatedAtAsc(ReservationStatus.WAITLIST).stream()
-                .filter(r -> filterBranchId == null || (r.getBranch() != null && r.getBranch().getId().equals(filterBranchId)))
-                .map(r -> {
-                    long waitingMinutes = r.getCreatedAt() != null 
-                            ? java.time.Duration.between(r.getCreatedAt(), now).toMinutes() 
-                            : 0L;
-                    return com.qrorder.dto.table.response.WaitlistResponse.builder()
-                            .reservationId(r.getId())
-                            .customerName(r.getCustomerName())
-                            .phoneNumber(r.getPhone())
-                            .guestCount(r.getGuestCount())
-                            .reservationTime(r.getReservationTime())
-                            .waitingMinutes(waitingMinutes)
-                            .build();
-                })
+        // Assign the selected table to the reservation
+        reservation.setTable(lockedTable);
+        reservationRepository.save(reservation);
+
+        // Open TableSession and link orders
+        Long sessionId = checkIn(lockedTable.getId());
+
+        // Update reservation details AFTER checkIn (since checkIn queries active reservations)
+        reservation.setStatus(ReservationStatus.SEATED);
+        reservation.setConfirmedAt(LocalDateTime.now());
+        reservation.setCheckedInAt(LocalDateTime.now());
+        reservationRepository.save(reservation);
+
+        String tableNumFormatted = String.format("A%02d", lockedTable.getTableNumber());
+
+        return com.qrorder.dto.table.response.AdminCheckInResponse.builder()
+                .success(true)
+                .reservationId(reservation.getId())
+                .tableId(lockedTable.getId())
+                .tableNumber(tableNumFormatted)
+                .guestCount(reservation.getGuestCount())
+                .message("Check-in thành công")
+                .build();
+    }
+
+    @Override
+    public List<com.qrorder.dto.table.response.ReservationResponse> getHistoryReservations() {
+        return reservationRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(r -> com.qrorder.dto.table.response.ReservationResponse.builder()
+                        .id(r.getId())
+                        .customerName(r.getCustomerName())
+                        .phone(r.getPhone())
+                        .confirmationCode(r.getConfirmationCode())
+                        .reservationCode(r.getReservationCode())
+                        .guestCount(r.getGuestCount())
+                        .reservationTime(r.getReservationTime())
+                        .note(r.getNote())
+                        .status(r.getStatus().name())
+                        .createdAt(r.getCreatedAt())
+                        .tableNumber(r.getTable() != null ? r.getTable().getTableNumber() : null)
+                        .confirmedAt(r.getConfirmedAt())
+                        .holdUntil(r.getHoldUntil())
+                        .checkedInAt(r.getCheckedInAt())
+                        .build())
                 .toList();
+    }
+
+    @Override
+    public List<com.qrorder.dto.table.response.ReservationResponse> searchReservations(String q) {
+        return reservationRepository.searchReservations(q.trim()).stream()
+                .map(r -> com.qrorder.dto.table.response.ReservationResponse.builder()
+                        .id(r.getId())
+                        .customerName(r.getCustomerName())
+                        .phone(r.getPhone())
+                        .confirmationCode(r.getConfirmationCode())
+                        .reservationCode(r.getReservationCode())
+                        .guestCount(r.getGuestCount())
+                        .reservationTime(r.getReservationTime())
+                        .note(r.getNote())
+                        .status(r.getStatus().name())
+                        .createdAt(r.getCreatedAt())
+                        .tableNumber(r.getTable() != null ? r.getTable().getTableNumber() : null)
+                        .confirmedAt(r.getConfirmedAt())
+                        .holdUntil(r.getHoldUntil())
+                        .checkedInAt(r.getCheckedInAt())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public Map<String, Object> getReservationDashboardStats() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        LocalDateTime startToday = today.atStartOfDay();
+        LocalDateTime endToday = today.atTime(23, 59, 59);
+
+        List<Reservation> allReservations = reservationRepository.findAll();
+
+        // Stats for today
+        long bookedToday = allReservations.stream()
+                .filter(r -> r.getReservationTime().isAfter(startToday) && r.getReservationTime().isBefore(endToday))
+                .filter(r -> r.getStatus() == ReservationStatus.BOOKED)
+                .count();
+
+        long seatedToday = allReservations.stream()
+                .filter(r -> r.getReservationTime().isAfter(startToday) && r.getReservationTime().isBefore(endToday))
+                .filter(r -> r.getStatus() == ReservationStatus.SEATED)
+                .count();
+
+        long completedToday = allReservations.stream()
+                .filter(r -> r.getReservationTime().isAfter(startToday) && r.getReservationTime().isBefore(endToday))
+                .filter(r -> r.getStatus() == ReservationStatus.COMPLETED)
+                .count();
+
+        long noShowToday = allReservations.stream()
+                .filter(r -> r.getReservationTime().isAfter(startToday) && r.getReservationTime().isBefore(endToday))
+                .filter(r -> r.getStatus() == ReservationStatus.NO_SHOW)
+                .count();
+
+        long cancelledToday = allReservations.stream()
+                .filter(r -> r.getReservationTime().isAfter(startToday) && r.getReservationTime().isBefore(endToday))
+                .filter(r -> r.getStatus() == ReservationStatus.CANCELLED)
+                .count();
+
+        long totalToday = allReservations.stream()
+                .filter(r -> r.getReservationTime().isAfter(startToday) && r.getReservationTime().isBefore(endToday))
+                .count();
+
+        double successRate = totalToday > 0 ? (((double) (seatedToday + completedToday)) / totalToday) * 100 : 0.0;
+
+        // Chart Data (7 Days and 30 Days)
+        List<Map<String, Object>> chart7Days = new java.util.ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            java.time.LocalDate date = today.minusDays(i);
+            chart7Days.add(getStatsForDate(allReservations, date));
+        }
+
+        List<Map<String, Object>> chart30Days = new java.util.ArrayList<>();
+        for (int i = 29; i >= 0; i--) {
+            java.time.LocalDate date = today.minusDays(i);
+            chart30Days.add(getStatsForDate(allReservations, date));
+        }
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalToday", totalToday);
+        stats.put("bookedToday", bookedToday);
+        stats.put("seatedToday", seatedToday);
+        stats.put("completedToday", completedToday);
+        stats.put("noShowToday", noShowToday);
+        stats.put("cancelledToday", cancelledToday);
+        stats.put("successRate", Math.round(successRate * 10.0) / 10.0);
+        stats.put("chart7Days", chart7Days);
+        stats.put("chart30Days", chart30Days);
+        return stats;
+    }
+
+    private Map<String, Object> getStatsForDate(List<Reservation> all, java.time.LocalDate date) {
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.atTime(23, 59, 59);
+
+        long booked = all.stream()
+                .filter(r -> r.getReservationTime().isAfter(start) && r.getReservationTime().isBefore(end))
+                .filter(r -> r.getStatus() == ReservationStatus.BOOKED)
+                .count();
+
+        long seated = all.stream()
+                .filter(r -> r.getReservationTime().isAfter(start) && r.getReservationTime().isBefore(end))
+                .filter(r -> r.getStatus() == ReservationStatus.SEATED)
+                .count();
+
+        long completed = all.stream()
+                .filter(r -> r.getReservationTime().isAfter(start) && r.getReservationTime().isBefore(end))
+                .filter(r -> r.getStatus() == ReservationStatus.COMPLETED)
+                .count();
+
+        long noShow = all.stream()
+                .filter(r -> r.getReservationTime().isAfter(start) && r.getReservationTime().isBefore(end))
+                .filter(r -> r.getStatus() == ReservationStatus.NO_SHOW)
+                .count();
+
+        long cancelled = all.stream()
+                .filter(r -> r.getReservationTime().isAfter(start) && r.getReservationTime().isBefore(end))
+                .filter(r -> r.getStatus() == ReservationStatus.CANCELLED)
+                .count();
+
+        Map<String, Object> dayStats = new HashMap<>();
+        dayStats.put("date", date.toString());
+        dayStats.put("booked", booked);
+        dayStats.put("seated", seated);
+        dayStats.put("completed", completed);
+        dayStats.put("noShow", noShow);
+        dayStats.put("cancelled", cancelled);
+        return dayStats;
     }
 }

@@ -18,4 +18,56 @@ public interface PaymentService {
     PaymentHistoryResponse getPaymentDetail(
             Long paymentId
     );
+
+    List<PaymentHistoryResponse> getPaymentHistoryFiltered(
+            String startDate,
+            String endDate,
+            String paymentMethod,
+            String paymentStatus,
+            Double minAmount,
+            Double maxAmount,
+            String search
+    );
+
+    java.util.Map<String, Object> getStatistics(
+            String startDate,
+            String endDate,
+            String paymentMethod,
+            String paymentStatus,
+            Double minAmount,
+            Double maxAmount,
+            String search
+    );
+
+    List<java.util.Map<String, Object>> getTopItems(
+            String startDate,
+            String endDate,
+            String paymentMethod,
+            String paymentStatus,
+            Double minAmount,
+            Double maxAmount,
+            String search
+    );
+
+    byte[] exportExcel(
+            String startDate,
+            String endDate,
+            String paymentMethod,
+            String paymentStatus,
+            Double minAmount,
+            Double maxAmount,
+            String search
+    );
+
+    byte[] exportPdf(
+            String startDate,
+            String endDate,
+            String paymentMethod,
+            String paymentStatus,
+            Double minAmount,
+            Double maxAmount,
+            String search
+    );
+
+    byte[] getInvoicePdf(Long paymentId);
 }

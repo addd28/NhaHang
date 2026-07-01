@@ -26,10 +26,6 @@ public class Order {
     private TableSession session;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = false, foreignKey = @ForeignKey(name = "fk_order_branch"))
-    private Branch branch;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reservation_id")
     private Reservation reservation;
 

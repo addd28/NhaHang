@@ -16,10 +16,7 @@ public class AdminReservationController {
 
     private final TableService tableService;
 
-    @GetMapping("/waitlist")
-    public ResponseEntity<?> getWaitlist() {
-        return ResponseEntity.ok(tableService.getWaitlist());
-    }
+
 
     @GetMapping("/lookup")
     public ResponseEntity<?> lookupReservation(@RequestParam String code) {

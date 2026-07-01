@@ -26,4 +26,29 @@ public class PaymentHistoryResponse {
     private String paymentStatus;
 
     private java.util.List<PaymentItemResponse> items;
+
+    // Detailed fields
+    private String customerName;
+
+    private String customerPhone;
+
+    private String reservationCode;
+
+    private LocalDateTime sessionStartTime;
+
+    private LocalDateTime sessionEndTime;
+
+    private String confirmedBy;
+
+    private Double subtotal;
+
+    private Double serviceCharge;
+
+    private Double taxAmount;
+
+    private Double discountAmount;
+
+    private String transactionCode;
+
+    private Long paymentRequestId;
 }

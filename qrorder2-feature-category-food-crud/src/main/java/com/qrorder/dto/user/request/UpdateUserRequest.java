@@ -15,6 +15,4 @@ public class UpdateUserRequest {
 
     @NotNull(message = "Role is required")
     private Role role;
-
-    private Long branchId;
 }

@@ -32,7 +32,7 @@ public interface TableService {
 
     CheckInByCodeResponse checkInByCode(String confirmationCode);
 
-    List<TableResponse> getTables(Long branchId);
+    List<TableResponse> getTables();
 
     void resetTable(Long tableId);
 
@@ -44,7 +44,15 @@ public interface TableService {
 
     com.qrorder.dto.table.response.AdminCheckInResponse adminCheckIn(String code);
 
-    void promoteWaitlist();
+    void cancelReservation(Long id);
 
-    List<com.qrorder.dto.table.response.WaitlistResponse> getWaitlist();
+    com.qrorder.dto.table.response.AdminCheckInResponse checkInReservation(Long id, Long tableId);
+
+    List<com.qrorder.dto.table.response.ReservationResponse> getHistoryReservations();
+
+    List<com.qrorder.dto.table.response.ReservationResponse> searchReservations(String q);
+
+    Map<String, Object> getReservationDashboardStats();
+
+    Map<String, Object> getOccupancy(java.time.LocalDateTime dateTime);
 }

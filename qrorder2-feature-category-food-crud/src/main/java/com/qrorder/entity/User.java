@@ -24,19 +24,4 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private Role role;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", foreignKey = @ForeignKey(name = "fk_user_branch"))
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    private Branch branch;
-
-    @Transient
-    public Long getBranchId() {
-        return branch != null ? branch.getId() : null;
-    }
-
-    @Transient
-    public String getBranchName() {
-        return branch != null ? branch.getName() : null;
-    }
 }

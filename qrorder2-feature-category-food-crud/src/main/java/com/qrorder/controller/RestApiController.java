@@ -38,23 +38,13 @@ public class RestApiController {
     // 1. GET /kitchen/orders
     @GetMapping("/kitchen/orders")
     public List<Map<String, Object>> getKitchenOrders() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        Long userBranchId = null;
-        if (auth != null && auth.isAuthenticated()) {
-            com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-            if (user != null && user.getBranch() != null) {
-                userBranchId = user.getBranch().getId();
-            }
-        }
-
-        final Long filterBranchId = userBranchId;
+        // Single restaurant: no branch filter
         List<OrderItem> items = new ArrayList<>(orderItemRepository.findKitchenOrderItems(
                 MenuItemType.KITCHEN,
-                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING),
-                filterBranchId
+                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING)
         ));
 
-        // Sort: newest order ID first (descending), then newest item ID first (descending)
+        // Sort: newest order ID first, then newest item ID first
         items.sort((a, b) -> {
             int orderCompare = Long.compare(b.getOrder().getId(), a.getOrder().getId());
             if (orderCompare != 0) return orderCompare;
@@ -80,17 +70,8 @@ public class RestApiController {
     // 2. GET /service/tables
     @GetMapping("/service/tables")
     public List<Map<String, Object>> getServiceTables() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        Long userBranchId = null;
-        if (auth != null && auth.isAuthenticated()) {
-            com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-            if (user != null && user.getBranch() != null) {
-                userBranchId = user.getBranch().getId();
-            }
-        }
-
-        final Long filterBranchId = userBranchId;
-        List<TableSession> openSessions = sessionRepository.findOpenSessionsWithTables(SessionStatus.OPEN, filterBranchId);
+        // Single restaurant: no branch filter
+        List<TableSession> openSessions = sessionRepository.findOpenSessionsWithTables(SessionStatus.OPEN);
         if (openSessions.isEmpty()) {
             return List.of();
         }
@@ -200,21 +181,8 @@ public class RestApiController {
     // 4. GET /cashier/sessions
     @GetMapping("/cashier/sessions")
     public List<Map<String, Object>> getCashierSessions() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        Long userBranchId = null;
-        if (auth != null && auth.isAuthenticated()) {
-            boolean isBranchManager = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_BRANCH_MANAGER"));
-            if (isBranchManager) {
-                com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-                if (user != null && user.getBranch() != null) {
-                    userBranchId = user.getBranch().getId();
-                }
-            }
-        }
-
-        final Long filterBranchId = userBranchId;
-        List<TableSession> sessions = sessionRepository.findOpenSessionsWithTables(SessionStatus.OPEN, filterBranchId);
+        // Single restaurant: no branch filter
+        List<TableSession> sessions = sessionRepository.findOpenSessionsWithTables(SessionStatus.OPEN);
         if (sessions.isEmpty()) {
             return List.of();
         }
@@ -232,11 +200,9 @@ public class RestApiController {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("sessionId", session.getId());
             map.put("tableNumber", session.getTable().getTableNumber());
-            map.put("branchId", session.getBranch() != null ? session.getBranch().getId() : null);
-            map.put("branchName", session.getBranch() != null ? session.getBranch().getName() : null);
             map.put("customerName", session.getCustomerName() != null ? session.getCustomerName() : "Customer");
             map.put("startTime", session.getStartTime());
-            
+
             List<OrderItem> sessionItems = itemsBySession.getOrDefault(session.getId(), List.of());
             double subtotal = sessionItems.stream()
                     .filter(item -> item.getStatus() == OrderItemStatus.SERVED)
@@ -259,19 +225,9 @@ public class RestApiController {
     // 5. GET /dashboard/count
     @GetMapping("/dashboard/count")
     public Map<String, Long> getDashboardCount() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        Long userBranchId = null;
-        if (auth != null && auth.isAuthenticated()) {
-            com.qrorder.entity.User user = userRepository.findByUsername(auth.getName()).orElse(null);
-            if (user != null && user.getBranch() != null) {
-                userBranchId = user.getBranch().getId();
-            }
-        }
-
-        final Long filterBranchId = userBranchId;
-        long count = orderItemRepository.countByStatusInAndBranchId(
-                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING),
-                filterBranchId
+        // Single restaurant: no branch filter
+        long count = orderItemRepository.countByStatusIn(
+                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING)
         );
         return Map.of("count", count);
     }

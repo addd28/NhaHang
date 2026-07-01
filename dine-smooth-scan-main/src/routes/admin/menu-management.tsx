@@ -14,6 +14,11 @@ import { uploadApi } from "../../api/uploadApi";
 import { cn } from "@/lib/utils";
 import { OptionGroupType, SelectionType } from "../../types";
 
+const formatPrice = (val?: number | null) => {
+  if (val === null || val === undefined) return "0 đ";
+  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+};
+
 export const Route = createFileRoute("/admin/menu-management")({
   component: AdminMenuManagement,
 });
@@ -362,7 +367,7 @@ function AdminMenuManagement() {
                           {menuItem.type}
                         </Badge>
                       </td>
-                      <td className="p-4 font-mono font-semibold">${menuItem.price.toFixed(2)}</td>
+                      <td className="p-4 font-mono font-semibold">{formatPrice(menuItem.price)}</td>
                       <td className="p-4">
                         <span className={cn("text-xs font-bold", menuItem.available ? "text-success" : "text-destructive")}>
                           {menuItem.available ? "Còn hàng" : "Hết món"}
@@ -942,7 +947,7 @@ function OptionGroupsDialog({ menuItem, onClose }: { menuItem: any; onClose: () 
                             <tr key={o.id} className={cn("border-b border-border/20 last:border-0 hover:bg-accent/5", o.deleted && "bg-neutral-100/5 hover:bg-neutral-100/10")}>
                               <td className={cn("py-2 font-mono text-[10px]", o.deleted && "line-through text-muted-foreground")}>{o.optionCode}</td>
                               <td className={cn("py-2 font-bold", o.deleted && "line-through text-muted-foreground")}>{o.name}</td>
-                              <td className={cn("py-2 font-mono font-semibold", o.deleted && "line-through text-muted-foreground")}>${o.price.toFixed(2)}</td>
+                              <td className={cn("py-2 font-mono font-semibold", o.deleted && "line-through text-muted-foreground")}>{formatPrice(o.price)}</td>
                               <td className={cn("py-2", o.deleted && "text-muted-foreground")}>{o.displayOrder || 0}</td>
                               <td className="py-2">
                                 {o.deleted ? (
