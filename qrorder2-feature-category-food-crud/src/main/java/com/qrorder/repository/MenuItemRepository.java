@@ -12,6 +12,7 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
     List<MenuItem> findByAvailable(Boolean available);
     Optional<MenuItem> findByIdAndAvailable(Long id, Boolean available);
     boolean existsByNameIgnoreCase(String name);
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
     boolean existsByCategoryId(Long categoryId);
 
     @EntityGraph(attributePaths = {"optionGroups"})

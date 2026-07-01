@@ -5,30 +5,40 @@ import com.qrorder.dto.menu.request.CreateMenuItemRequest;
 import com.qrorder.dto.menu.request.UpdateMenuItemRequest;
 import com.qrorder.entity.Category;
 import com.qrorder.entity.MenuItem;
+import com.qrorder.exception.BusinessException;
 import com.qrorder.repository.CategoryRepository;
 import com.qrorder.repository.MenuItemRepository;
 import com.qrorder.service.MenuItemService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MenuItemServiceImpl implements MenuItemService {
 
     private final MenuItemRepository menuItemRepository;
     private final CategoryRepository categoryRepository;
 
     @Override
+    @Transactional
     public void createMenuItem(CreateMenuItemRequest request) {
         String name = request.getName().trim();
         if (menuItemRepository.existsByNameIgnoreCase(name)) {
-            throw new RuntimeException("Menu item already exists");
+            throw new BusinessException("DUPLICATE_NAME", "Tên món ăn đã tồn tại, vui lòng chọn tên khác.", HttpStatus.CONFLICT);
         }
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new BusinessException("CATEGORY_NOT_FOUND", "Danh mục không tồn tại", HttpStatus.NOT_FOUND));
+
+        if (request.getPrice() == null || request.getPrice() <= 0) {
+            throw new BusinessException("INVALID_PRICE", "Giá món ăn không hợp lệ", HttpStatus.BAD_REQUEST);
+        }
 
         String imageVal = request.getImageUrl() != null ? request.getImageUrl() : request.getImage();
 
@@ -46,6 +56,7 @@ public class MenuItemServiceImpl implements MenuItemService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<MenuItemResponse> getMenuItems(boolean isAdmin) {
         List<MenuItem> items;
         if (isAdmin) {
@@ -57,41 +68,63 @@ public class MenuItemServiceImpl implements MenuItemService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public MenuItemResponse getMenuItemById(Long id, boolean isAdmin) {
         MenuItem menuItem = menuItemRepository.findByIdWithOptions(id)
-                .orElseThrow(() -> new RuntimeException("Menu item not found"));
+                .orElseThrow(() -> new BusinessException("MENU_ITEM_NOT_FOUND", "Món ăn không tồn tại", HttpStatus.NOT_FOUND));
 
         if (!isAdmin && (menuItem.getAvailable() == null || !menuItem.getAvailable())) {
-            throw new RuntimeException("Món ăn không sẵn sàng");
+            throw new BusinessException("MENU_ITEM_NOT_READY", "Món ăn không sẵn sàng", HttpStatus.BAD_REQUEST);
         }
 
         return toResponse(menuItem, isAdmin);
     }
 
     @Override
+    @Transactional
     public void updateMenuItem(Long id, UpdateMenuItemRequest request) {
+        log.info("Update Menu Request: {}", request);
         MenuItem menuItem = menuItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Menu item not found"));
+                .orElseThrow(() -> new BusinessException("MENU_ITEM_NOT_FOUND", "Món ăn không tồn tại", HttpStatus.NOT_FOUND));
+
+        // Check name uniqueness excluding self
+        String newName = request.getName().trim();
+        if (!newName.equalsIgnoreCase(menuItem.getName()) &&
+                menuItemRepository.existsByNameIgnoreCaseAndIdNot(newName, id)) {
+            throw new BusinessException("DUPLICATE_NAME", "Tên món ăn đã tồn tại, vui lòng chọn tên khác.", HttpStatus.CONFLICT);
+        }
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new BusinessException("CATEGORY_NOT_FOUND", "Danh mục không tồn tại", HttpStatus.NOT_FOUND));
 
-        String imageVal = request.getImageUrl() != null ? request.getImageUrl() : request.getImage();
+        if (request.getPrice() == null || request.getPrice() <= 0) {
+            throw new BusinessException("INVALID_PRICE", "Giá món ăn không hợp lệ", HttpStatus.BAD_REQUEST);
+        }
 
-        menuItem.setName(request.getName().trim());
+        // Keep existing image if no new image provided
+        String imageVal = request.getImageUrl() != null ? request.getImageUrl()
+                : request.getImage() != null ? request.getImage()
+                : menuItem.getImageUrl();
+
+        menuItem.setName(newName);
         menuItem.setPrice(request.getPrice());
         menuItem.setDescription(request.getDescription());
         menuItem.setImageUrl(imageVal);
         menuItem.setType(request.getType());
         menuItem.setCategory(category);
 
+        log.info("Entity Before Save - ID: {}, Name: {}, Price: {}, Description: {}, ImageUrl: {}, Type: {}, CategoryId: {}, Available: {}",
+                menuItem.getId(), menuItem.getName(), menuItem.getPrice(), menuItem.getDescription(), menuItem.getImageUrl(), menuItem.getType(),
+                menuItem.getCategory() != null ? menuItem.getCategory().getId() : null, menuItem.getAvailable());
+
         menuItemRepository.save(menuItem);
     }
 
     @Override
+    @Transactional
     public void deleteMenuItem(Long id) {
         MenuItem menuItem = menuItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Menu item not found"));
+                .orElseThrow(() -> new BusinessException("MENU_ITEM_NOT_FOUND", "Món ăn không tồn tại", HttpStatus.NOT_FOUND));
         menuItem.setAvailable(false);
         menuItemRepository.save(menuItem);
     }

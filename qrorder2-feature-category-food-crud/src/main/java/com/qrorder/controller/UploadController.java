@@ -14,7 +14,7 @@ import java.util.UUID;
 @RequestMapping("/upload")
 public class UploadController {
 
-    private static final Set<String> ALLOWED_TYPES = Set.of("menu-items", "posts", "qr");
+    private static final Set<String> ALLOWED_TYPES = Set.of("menu-items", "foods", "posts", "qr");
 
     @PostMapping
     public ResponseEntity<?> uploadFile(
@@ -28,7 +28,11 @@ public class UploadController {
         // Validate type to prevent folder traversal
         String folderType = type.toLowerCase();
         if (!ALLOWED_TYPES.contains(folderType)) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Invalid upload type. Allowed: menu-items, posts, qr"));
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid upload type. Allowed: menu-items, foods, posts, qr"));
+        }
+        // Normalize 'foods' to 'menu-items' so images go to the same folder
+        if (folderType.equals("foods")) {
+            folderType = "menu-items";
         }
 
         try {

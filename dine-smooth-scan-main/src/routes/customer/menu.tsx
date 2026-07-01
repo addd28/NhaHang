@@ -178,10 +178,10 @@ function CustomerMenu() {
 
   const handleDirectAddToCart = (item: MenuItem) => {
     if (!item.available) return;
-    
+
     // Check if the item has any required option groups
     const hasRequired = (item.optionGroups || []).some(g => g.required);
-    
+
     if (hasRequired) {
       setDetailItem(item);
     } else {
@@ -782,8 +782,8 @@ function CustomerMenu() {
                 <span className="font-bold text-success">{progressSummary.served}/{progressSummary.total} món</span>
               </div>
               <div className="h-2 w-full bg-accent rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-success transition-all duration-500" 
+                <div
+                  className="h-full bg-success transition-all duration-500"
                   style={{ width: `${progressSummary.percent}%` }}
                 />
               </div>
@@ -904,7 +904,7 @@ function CustomerMenu() {
                   <p className="text-xs font-bold text-amber-600">Yêu cầu thanh toán đã được gửi</p>
                   <p className="text-[10px] text-amber-500/80">Vui lòng chờ thu ngân xác nhận và đóng bàn</p>
                   {activePaymentRequest?.paymentMethod === "QR" && (
-                    <Button 
+                    <Button
                       onClick={() => {
                         setShowVietQRDialog(true);
                         setShowOrderedItemsSheet(false);
@@ -946,10 +946,10 @@ function CustomerMenu() {
 
   const handleDirectAddWithSize = (item: MenuItem, size: "Small" | "Medium" | "Large") => {
     if (!item.available) return;
-    
+
     const sizeGroup = (item.optionGroups || []).find(g => g.type === "SIZE" || g.name.toLowerCase() === "size");
     const otherRequiredGroups = (item.optionGroups || []).filter(g => g.required && g !== sizeGroup);
-    
+
     if (otherRequiredGroups.length > 0) {
       setDetailItem(item);
       return;
@@ -1169,7 +1169,7 @@ function CustomerMenu() {
                     <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
-                      placeholder="Tìm món ăn (vd: Pizza, Burger, Mojito...)"
+                      placeholder="Tìm món ăn"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full h-12 pl-11 pr-10 rounded-full border border-border bg-card/60 backdrop-blur-md focus:border-primary/50 focus:outline-none text-sm shadow-soft transition-smooth"
@@ -1463,9 +1463,9 @@ function CustomerMenu() {
                   {/* QR Image */}
                   <div className="flex flex-col items-center justify-center p-2.5 sm:p-4 bg-white rounded-2xl border border-gray-100 shadow-soft">
                     {activePaymentRequest.qrUrl ? (
-                      <img 
-                        src={activePaymentRequest.qrUrl} 
-                        alt="Mã QR thanh toán VietQR" 
+                      <img
+                        src={activePaymentRequest.qrUrl}
+                        alt="Mã QR thanh toán VietQR"
                         className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
                       />
                     ) : (
@@ -1500,7 +1500,7 @@ function CustomerMenu() {
                       <span className="text-muted-foreground">Số tài khoản:</span>
                       <div className="flex items-center gap-1.5 font-bold">
                         <span className="font-mono">{activePaymentRequest.bankAccount || "0123456789"}</span>
-                        <button 
+                        <button
                           onClick={() => handleCopy(activePaymentRequest.bankAccount || "0123456789", "Đã sao chép số tài khoản!")}
                           className="p-1 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
                           title="Sao chép số tài khoản"
@@ -1513,7 +1513,7 @@ function CustomerMenu() {
                       <span className="text-muted-foreground">Nội dung CK:</span>
                       <div className="flex items-center gap-1.5 font-bold text-primary">
                         <span className="font-mono">{activePaymentRequest.transferContent || activePaymentRequest.transactionCode}</span>
-                        <button 
+                        <button
                           onClick={() => handleCopy(activePaymentRequest.transferContent || activePaymentRequest.transactionCode || "", "Đã sao chép nội dung chuyển khoản!")}
                           className="p-1 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
                           title="Sao chép nội dung chuyển khoản"
@@ -1697,7 +1697,7 @@ function MenuItemDetail({
     const groupId = Number(group.id);
     const optionId = Number(option.id);
     const isSingle = group.selectionType === "SINGLE" || String(group.selectionType).toUpperCase() === "SINGLE";
-    
+
     setSelectedOptions((prev) => {
       const current = prev[groupId] || [];
       if (isSingle) {
@@ -1790,7 +1790,7 @@ function MenuItemDetail({
     }
 
     const optionIds = Object.values(selectedOptions).flat().map((id) => Number(id));
-    
+
     const toppings: string[] = [];
     (item.optionGroups || []).forEach((g) => {
       const selected = selectedOptions[Number(g.id)] || [];
@@ -1825,7 +1825,7 @@ function MenuItemDetail({
             <MenuItemImage src={item.image} alt={item.name} className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent md:bg-gradient-to-r" />
           </div>
-          
+
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {/* Scrollable Content */}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 text-left space-y-5">
@@ -1858,8 +1858,8 @@ function MenuItemDetail({
 
               {/* Dynamic Option Groups */}
               {(item.optionGroups || []).map((group) => (
-                <Section 
-                  key={group.id} 
+                <Section
+                  key={group.id}
                   label={`${group.name} ${group.required ? "(Bắt buộc)" : "(Tùy chọn)"}`}
                 >
                   {(group.selectionType === "MULTIPLE" || String(group.selectionType).toUpperCase() === "MULTIPLE") && (group.minSelect || group.maxSelect) && (

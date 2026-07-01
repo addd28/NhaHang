@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "../../hooks/useAuth";
 import AdminLayout from "../../components/AdminLayout";
-import { menuApi } from "../../api/menuApi";
+import { menuApi, extractApiError, extractApiDetails } from "../../api/menuApi";
 import { categoryApi } from "../../api/categoryApi";
 import { uploadApi } from "../../api/uploadApi";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ function AdminMenuManagement() {
   const [image, setImage] = useState("pizza");
   const [categoryId, setCategoryId] = useState<number>(0);
   const [type, setType] = useState<"INSTANT" | "KITCHEN">("KITCHEN");
+  const [formErrors, setFormErrors] = useState<{ field: string; message: string }[]>([]);
 
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -101,11 +102,18 @@ function AdminMenuManagement() {
     },
     onSuccess: (data) => {
       toast.success(data.message || "Tạo món ăn thành công!");
+      setFormErrors([]);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["adminMenuItems"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Lỗi tạo món ăn");
+      const details = extractApiDetails(err);
+      if (details.length > 0) {
+        setFormErrors(details);
+        toast.error("Vui lòng kiểm tra lại thông tin bên dưới.");
+      } else {
+        toast.error(extractApiError(err));
+      }
     }
   });
 
@@ -115,11 +123,18 @@ function AdminMenuManagement() {
     },
     onSuccess: (data) => {
       toast.success(data.message || "Cập nhật món ăn thành công!");
+      setFormErrors([]);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["adminMenuItems"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Lỗi cập nhật món ăn");
+      const details = extractApiDetails(err);
+      if (details.length > 0) {
+        setFormErrors(details);
+        toast.error("Vui lòng kiểm tra lại thông tin bên dưới.");
+      } else {
+        toast.error(extractApiError(err));
+      }
     }
   });
 
@@ -155,11 +170,13 @@ function AdminMenuManagement() {
     setImage("pizza");
     setCategoryId(categories[0]?.id || 0);
     setType("KITCHEN");
+    setFormErrors([]);
     setFormOpen(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErrors([]);
     if (!name || price <= 0 || !categoryId) {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc!");
       return;
@@ -169,7 +186,8 @@ function AdminMenuManagement() {
       name,
       price,
       description,
-      image,
+      imageUrl: image || undefined,
+      image: image || undefined,
       categoryId,
       type
     };
@@ -312,6 +330,18 @@ function AdminMenuManagement() {
                   />
                 </div>
               </div>
+
+              {/* Validation Error Details */}
+              {formErrors.length > 0 && (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-1">
+                  <p className="text-xs font-bold text-destructive">Lỗi xác thực dữ liệu:</p>
+                  {formErrors.map((fe, idx) => (
+                    <p key={idx} className="text-xs text-destructive">
+                      <span className="font-semibold font-mono">[{fe.field}]</span> {fe.message}
+                    </p>
+                  ))}
+                </div>
+              )}
 
               <div className="flex gap-2 justify-end pt-2">
                 <Button type="button" variant="outline" onClick={resetForm} className="h-9 rounded-full text-xs">Hủy</Button>
