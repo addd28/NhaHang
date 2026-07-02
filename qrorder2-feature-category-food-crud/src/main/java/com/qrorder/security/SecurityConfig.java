@@ -55,6 +55,8 @@ public class SecurityConfig {
                         // Danh sách + xác nhận payment request — chỉ Cashier/Admin
                         .requestMatchers("/cashier/payment-requests/**")
                             .hasAnyRole("ADMIN", "CASHIER")
+                        // GET /cashier/calls - công khai để ai cũng xem được bàn đang gọi
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/cashier/calls").permitAll()
                         .requestMatchers("/cashier/**").hasAnyRole("ADMIN", "CASHIER")
                         .requestMatchers("/kitchen/**").hasAnyRole("ADMIN", "KITCHEN")
                         .requestMatchers("/orders/items/*/status").hasAnyRole("ADMIN", "WAITER", "KITCHEN")

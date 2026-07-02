@@ -19,6 +19,7 @@ export interface UpdateMenuItemRequest {
   imageUrl?: string;
   categoryId: number;
   type: "INSTANT" | "KITCHEN";
+  available?: boolean;
 }
 
 /** Extract a user-friendly error message from an Axios error.
@@ -86,6 +87,13 @@ export const menuApi = {
   },
   deleteMenuItem: async (id: number): Promise<{ message: string }> => {
     const response = await axiosInstance.delete<{ message: string }>(`/menu-items/${id}`);
+    return response.data;
+  },
+
+  toggleAvailable: async (id: number, available: boolean): Promise<{ message: string }> => {
+    const response = await axiosInstance.patch<{ message: string }>(`/menu-items/${id}/available`, null, {
+      params: { available },
+    });
     return response.data;
   },
 

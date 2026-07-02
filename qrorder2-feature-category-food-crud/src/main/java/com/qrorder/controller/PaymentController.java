@@ -157,6 +157,19 @@ public class PaymentController {
         }
     }
 
+    /**
+     * Lấy danh sách tất cả yêu cầu thanh toán chờ xác nhận (PENDING)
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<?> getPendingRequests() {
+        try {
+            List<PaymentRequestResponse> pendingRequests = paymentRequestService.getPendingRequests();
+            return ResponseEntity.ok(pendingRequests);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @GetMapping("/history")
     public List<PaymentHistoryResponse> getPaymentHistory(
             @RequestParam(required = false) String startDate,

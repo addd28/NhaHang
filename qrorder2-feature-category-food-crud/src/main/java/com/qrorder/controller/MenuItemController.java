@@ -68,6 +68,15 @@ public class MenuItemController {
         return Map.of("message", "Update menu item success");
     }
 
+    @PatchMapping("/menu-items/{id}/available")
+    public Map<String, String> toggleAvailable(
+            @PathVariable Long id,
+            @RequestParam boolean available
+    ) {
+        menuItemService.toggleAvailable(id, available);
+        return Map.of("message", available ? "Món đã mở bán trở lại" : "Đã đánh dấu Hết món");
+    }
+
     @DeleteMapping("/menu-items/{id}")
     public Map<String, String> deleteMenuItem(@PathVariable Long id) {
         menuItemService.deleteMenuItem(id);

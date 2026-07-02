@@ -26,4 +26,6 @@ public class UpdateMenuItemRequest {
 
     @NotNull(message = "Item type is required")
     private MenuItemType type;
+
+    private Boolean available;
 }

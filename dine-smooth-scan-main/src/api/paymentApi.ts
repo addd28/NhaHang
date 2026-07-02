@@ -22,139 +22,241 @@ export interface CashierSession {
   paymentMethod?: string;
 }
 
-export interface PaymentRequestItem {
-  id: number;
-  sessionId: number;
-  tableNumber: number;
-  amount: number;
-  paymentMethod: string; // CASH | QR | PAYPAL
-  status: string;        // PENDING | CONFIRMED | CANCELLED
-  requestedAt: string;
-  confirmedAt?: string;
-  confirmedByUserId?: number;
-  alreadyPaid: boolean;  // true = PayPal đã thanh toán, chỉ cần xác nhận đóng bàn
-  transactionCode?: string;
-  paymentStatus?: string;
-  bankName?: string;
-  bankAccount?: string;
-  accountName?: string;
-  qrUrl?: string;
-  transferContent?: string;
-  createdAt?: string;
-  expiredAt?: string;
-  confirmedBy?: string;
-}
-
 export const paymentApi = {
+  /**
+   * Lấy hóa đơn của một bàn
+   */
   getBill: async (sessionId: number): Promise<PaymentResponse> => {
-    const response = await axiosInstance.get<PaymentResponse>(`/payments/${sessionId}`);
-    return response.data;
-  },
-
-  /** [DEPRECATED] — đóng session ngay, chỉ dùng cho backward-compat PayPal */
-  payment: async (sessionId: number, paymentMethod: string = "CASH"): Promise<{ message: string }> => {
-    const response = await axiosInstance.post<{ message: string }>(`/payments/${sessionId}`, null, {
-      params: { paymentMethod },
-    });
+    const response = await axiosInstance.get<PaymentResponse>(
+      `/payments/${sessionId}`
+    );
     return response.data;
   },
 
   /**
-   * [NEW] Khách gửi yêu cầu thanh toán — KHÔNG đóng session.
+   * Thu ngân xác nhận thanh toán và đóng bàn
    */
-  requestPayment: async (sessionId: number, paymentMethod: string): Promise<PaymentRequestItem> => {
-    const response = await axiosInstance.post<PaymentRequestItem>(`/payments/request/${sessionId}`, null, {
-      params: { paymentMethod },
-    });
+  payment: async (
+    sessionId: number,
+    paymentMethod: string = "CASH"
+  ): Promise<{ message: string }> => {
+    const response = await axiosInstance.post<{ message: string }>(
+      `/payments/${sessionId}`,
+      null,
+      {
+        params: {
+          paymentMethod,
+        },
+      }
+    );
+
     return response.data;
   },
 
   /**
-   * Kiểm tra session đã có PENDING request chưa.
+   * Danh sách các bàn đang có khách
    */
-  checkPendingRequest: async (sessionId: number): Promise<{ hasPending: boolean, request?: PaymentRequestItem }> => {
-    const response = await axiosInstance.get<{ hasPending: boolean, request?: PaymentRequestItem }>(`/payments/request/status`, {
-      params: { sessionId },
-    });
-    return response.data;
-  },
-
-  getPaymentHistory: async (): Promise<any[]> => {
-    const response = await axiosInstance.get<any[]>("/payments/history");
-    return response.data;
-  },
-
   getCashierSessions: async (): Promise<CashierSession[]> => {
-    const response = await axiosInstance.get<CashierSession[]>("/cashier/sessions");
-    return response.data;
-  },
-
-  closeSession: async (sessionId: number): Promise<{ success: boolean }> => {
-    const response = await axiosInstance.post<{ success: boolean }>(`/cashier/close-session/${sessionId}`);
-    return response.data;
-  },
-
-  /**
-   * [NEW] Danh sách yêu cầu thanh toán PENDING — dành cho Cashier.
-   */
-  getPendingPaymentRequests: async (): Promise<PaymentRequestItem[]> => {
-    const response = await axiosInstance.get<PaymentRequestItem[]>("/cashier/payment-requests");
+    const response = await axiosInstance.get<CashierSession[]>(
+      "/cashier/sessions"
+    );
     return response.data;
   },
 
   /**
-   * [NEW] Cashier xác nhận đã nhận tiền → đóng session → giải phóng bàn.
+   * Đóng bàn (fallback nếu cần)
    */
-  confirmPaymentRequest: async (id: number): Promise<PaymentRequestItem> => {
-    const response = await axiosInstance.post<PaymentRequestItem>(`/payments/confirm/${id}`);
+  closeSession: async (
+    sessionId: number
+  ): Promise<{ success: boolean }> => {
+    const response = await axiosInstance.post<{ success: boolean }>(
+      `/cashier/close-session/${sessionId}`
+    );
+
     return response.data;
   },
 
-  cancelPaymentRequest: async (id: number): Promise<PaymentRequestItem> => {
-    const response = await axiosInstance.post<PaymentRequestItem>(`/payments/cancel/${id}`);
-    return response.data;
-  },
+  /**
+   * Lịch sử thanh toán
+   */
+  getPaymentHistory: async (): Promise<any[]> => {
+    const response = await axiosInstance.get<any[]>(
+      "/payments/history"
+    );
 
-  getPaymentRequest: async (id: number): Promise<PaymentRequestItem> => {
-    const response = await axiosInstance.get<PaymentRequestItem>(`/payments/request/${id}`);
     return response.data;
   },
 
   getPaymentHistoryFiltered: async (filters: any): Promise<any[]> => {
-    const response = await axiosInstance.get<any[]>("/payments/history", { params: filters });
+    const response = await axiosInstance.get<any[]>(
+      "/payments/history",
+      {
+        params: filters,
+      }
+    );
+
     return response.data;
   },
 
+  /**
+   * Dashboard
+   */
   getStatistics: async (filters: any): Promise<any> => {
-    const response = await axiosInstance.get<any>("/payments/statistics", { params: filters });
+    const response = await axiosInstance.get(
+      "/payments/statistics",
+      {
+        params: filters,
+      }
+    );
+
     return response.data;
   },
 
   getTopItems: async (filters: any): Promise<any[]> => {
-    const response = await axiosInstance.get<any[]>("/payments/top-items", { params: filters });
+    const response = await axiosInstance.get<any[]>(
+      "/payments/top-items",
+      {
+        params: filters,
+      }
+    );
+
     return response.data;
   },
 
+  /**
+   * Export
+   */
   exportExcel: async (filters: any): Promise<Blob> => {
-    const response = await axiosInstance.get("/payments/export/excel", {
-      params: filters,
-      responseType: "blob",
-    });
+    const response = await axiosInstance.get(
+      "/payments/export/excel",
+      {
+        params: filters,
+        responseType: "blob",
+      }
+    );
+
     return response.data;
   },
 
   exportPdf: async (filters: any): Promise<Blob> => {
-    const response = await axiosInstance.get("/payments/export/pdf", {
-      params: filters,
-      responseType: "blob",
-    });
+    const response = await axiosInstance.get(
+      "/payments/export/pdf",
+      {
+        params: filters,
+        responseType: "blob",
+      }
+    );
+
     return response.data;
   },
 
   getInvoicePdf: async (paymentId: number): Promise<Blob> => {
-    const response = await axiosInstance.get(`/payments/${paymentId}/invoice`, {
-      responseType: "blob",
-    });
+    const response = await axiosInstance.get(
+      `/payments/${paymentId}/invoice`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    return response.data;
+  },
+
+  /**
+   * Gọi nhân viên
+   */
+  callCashier: async (sessionId: number): Promise<any> => {
+    const response = await axiosInstance.post(
+      `/cashier/call/${sessionId}`
+    );
+
+    return response.data;
+  },
+
+  getCalls: async (): Promise<any[]> => {
+    try {
+      const response = await axiosInstance.get<any[]>(
+        "/cashier/calls"
+      );
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  clearCall: async (sessionId: number): Promise<any> => {
+    const response = await axiosInstance.delete(
+      `/cashier/call/${sessionId}`
+    );
+
+    return response.data;
+  },
+
+  /**
+   * Tạo yêu cầu thanh toán từ cashier (sau khi check SERVED)
+   */
+  requestPayment: async (
+    sessionId: number,
+    paymentMethod: string = "QR"
+  ): Promise<any> => {
+    const response = await axiosInstance.post(
+      `/payments/request/${sessionId}`,
+      null,
+      {
+        params: { paymentMethod },
+      }
+    );
+
+    return response.data;
+  },
+
+  /**
+   * Xác nhận yêu cầu thanh toán (Cashier confirm sau khi khách thanh toán)
+   */
+  confirmPaymentRequest: async (requestId: number): Promise<any> => {
+    const response = await axiosInstance.post(
+      `/payments/confirm/${requestId}`
+    );
+
+    return response.data;
+  },
+
+  /**
+   * Hủy yêu cầu thanh toán
+   */
+  cancelPaymentRequest: async (requestId: number): Promise<any> => {
+    const response = await axiosInstance.post(
+      `/payments/cancel/${requestId}`
+    );
+
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách yêu cầu thanh toán chờ xác nhận
+   * [Cần implement backend endpoint nếu chưa có]
+   */
+  getPendingPaymentRequests: async (): Promise<any[]> => {
+    try {
+      const response = await axiosInstance.get<any[]>(
+        "/payments/pending"
+      );
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Kiểm tra session có yêu cầu thanh toán chờ không
+   */
+  checkPendingRequest: async (sessionId: number): Promise<any> => {
+    const response = await axiosInstance.get(
+      "/payments/request/status",
+      {
+        params: { sessionId },
+      }
+    );
+
     return response.data;
   },
 };

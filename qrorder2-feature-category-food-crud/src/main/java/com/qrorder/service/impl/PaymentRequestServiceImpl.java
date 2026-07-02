@@ -57,7 +57,7 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
 
         // Guard: chỉ cho phép 1 yêu cầu PENDING mỗi lúc
         if (paymentRequestRepository.existsBySessionIdAndStatus(sessionId, PaymentRequestStatus.PENDING)) {
-            throw new RuntimeException("PENDING_ALREADY_EXISTS: Đã có yêu cầu thanh toán đang chờ xác nhận.");
+            throw new RuntimeException("Đã có yêu cầu thanh toán đang chờ xác nhận.");
         }
 
         // Chặn thanh toán nếu còn món chưa phục vụ xong

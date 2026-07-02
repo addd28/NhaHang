@@ -41,13 +41,13 @@ public class RestApiController {
         // Single restaurant: no branch filter
         List<OrderItem> items = new ArrayList<>(orderItemRepository.findKitchenOrderItems(
                 MenuItemType.KITCHEN,
-                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING)
-        ));
+                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING)));
 
         // Sort: newest order ID first, then newest item ID first
         items.sort((a, b) -> {
             int orderCompare = Long.compare(b.getOrder().getId(), a.getOrder().getId());
-            if (orderCompare != 0) return orderCompare;
+            if (orderCompare != 0)
+                return orderCompare;
             return Long.compare(b.getId(), a.getId());
         });
 
@@ -56,13 +56,14 @@ public class RestApiController {
             map.put("itemId", item.getId());
             map.put("orderId", item.getOrder().getId());
             map.put("menuItemId", item.getMenuItem().getId());
-            map.put("menuItemName", item.getMenuItemName() != null ? item.getMenuItemName() : item.getMenuItem().getName());
+            map.put("menuItemName",
+                    item.getMenuItemName() != null ? item.getMenuItemName() : item.getMenuItem().getName());
             map.put("quantity", item.getQuantity());
             map.put("note", item.getNote());
             map.put("status", item.getStatus().name());
-            map.put("options", item.getOptions() != null ?
-                    item.getOptions().stream().map(OrderItemOption::getOptionName).toList() :
-                    List.of());
+            map.put("options",
+                    item.getOptions() != null ? item.getOptions().stream().map(OrderItemOption::getOptionName).toList()
+                            : List.of());
             return map;
         }).collect(Collectors.toList());
     }
@@ -100,13 +101,15 @@ public class RestApiController {
                 List<Map<String, Object>> itemsList = matchingItems.stream().map(item -> {
                     Map<String, Object> itemMap = new LinkedHashMap<>();
                     itemMap.put("itemId", item.getId());
-                    itemMap.put("menuItemName", item.getMenuItemName() != null ? item.getMenuItemName() : item.getMenuItem().getName());
+                    itemMap.put("menuItemName",
+                            item.getMenuItemName() != null ? item.getMenuItemName() : item.getMenuItem().getName());
                     itemMap.put("type", item.getMenuItem().getType().name());
                     itemMap.put("status", item.getStatus().name());
                     itemMap.put("note", item.getNote());
-                    itemMap.put("options", item.getOptions() != null ?
-                            item.getOptions().stream().map(OrderItemOption::getOptionName).toList() :
-                            List.of());
+                    itemMap.put("options",
+                            item.getOptions() != null
+                                    ? item.getOptions().stream().map(OrderItemOption::getOptionName).toList()
+                                    : List.of());
                     return itemMap;
                 }).collect(Collectors.toList());
 
@@ -158,15 +161,16 @@ public class RestApiController {
             itemsList.add(OrderItemResponse.builder()
                     .itemId(item.getId())
                     .menuItemId(item.getMenuItem().getId())
-                    .menuItemName(item.getMenuItemName() != null ? item.getMenuItemName() : item.getMenuItem().getName())
+                    .menuItemName(
+                            item.getMenuItemName() != null ? item.getMenuItemName() : item.getMenuItem().getName())
                     .type(item.getMenuItem().getType().name())
                     .quantity(item.getQuantity())
                     .note(item.getNote())
                     .status(item.getStatus().name())
                     .price(item.getPrice())
-                    .options(item.getOptions() != null ?
-                            item.getOptions().stream().map(OrderItemOption::getOptionName).toList() :
-                            List.of())
+                    .options(item.getOptions() != null
+                            ? item.getOptions().stream().map(OrderItemOption::getOptionName).toList()
+                            : List.of())
                     .orderedTime(item.getOrderedTime())
                     .preparingTime(item.getPreparingTime())
                     .doneTime(item.getDoneTime())
@@ -200,15 +204,22 @@ public class RestApiController {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("sessionId", session.getId());
             map.put("tableNumber", session.getTable().getTableNumber());
-            map.put("customerName", session.getCustomerName() != null ? session.getCustomerName() : "Customer");
+            map.put("customerName",
+                    session.getCustomerName() != null ? session.getCustomerName() : "Customer");
             map.put("startTime", session.getStartTime());
 
+            // Lấy toàn bộ món của phiên hiện tại
             List<OrderItem> sessionItems = itemsBySession.getOrDefault(session.getId(), List.of());
+
+            // Chỉ tính món đã SERVED
             double subtotal = sessionItems.stream()
                     .filter(item -> item.getStatus() == OrderItemStatus.SERVED)
                     .mapToDouble(item -> item.getPrice() * item.getQuantity())
                     .sum();
-            map.put("totalAmount", subtotal);
+
+            double totalWithTaxAndService = subtotal * 1.13; // 5% service + 8% VAT
+
+            map.put("totalAmount", totalWithTaxAndService);
 
             Payment payment = paymentBySessionId.get(session.getId());
             if (payment != null) {
@@ -227,8 +238,7 @@ public class RestApiController {
     public Map<String, Long> getDashboardCount() {
         // Single restaurant: no branch filter
         long count = orderItemRepository.countByStatusIn(
-                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING)
-        );
+                List.of(OrderItemStatus.PENDING, OrderItemStatus.PREPARING));
         return Map.of("count", count);
     }
 }

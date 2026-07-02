@@ -40,6 +40,7 @@ function AdminMenuManagement() {
   const [image, setImage] = useState("pizza");
   const [categoryId, setCategoryId] = useState<number>(0);
   const [type, setType] = useState<"INSTANT" | "KITCHEN">("KITCHEN");
+  const [available, setAvailable] = useState<boolean>(true);
   const [formErrors, setFormErrors] = useState<{ field: string; message: string }[]>([]);
 
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -155,6 +156,19 @@ function AdminMenuManagement() {
     }
   });
 
+  const toggleAvailableMutation = useMutation({
+    mutationFn: async ({ id, available }: { id: number; available: boolean }) => {
+      return menuApi.toggleAvailable(id, available);
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Cập nhật trạng thái thành công!");
+      queryClient.invalidateQueries({ queryKey: ["adminMenuItems"] });
+    },
+    onError: (err: any) => {
+      toast.error(extractApiError(err) || "Lỗi cập nhật trạng thái");
+    }
+  });
+
   const handleEdit = (menuItem: any) => {
     setEditId(menuItem.id);
     setName(menuItem.name);
@@ -163,6 +177,7 @@ function AdminMenuManagement() {
     setImage(menuItem.image || "special");
     setCategoryId(menuItem.categoryId || categories[0]?.id || 0);
     setType(menuItem.type || "KITCHEN");
+    setAvailable(menuItem.available ?? true);
     setFormOpen(true);
   };
 
@@ -174,6 +189,7 @@ function AdminMenuManagement() {
     setImage("pizza");
     setCategoryId(categories[0]?.id || 0);
     setType("KITCHEN");
+    setAvailable(true);
     setFormErrors([]);
     setFormOpen(false);
   };
@@ -193,11 +209,20 @@ function AdminMenuManagement() {
       imageUrl: image || undefined,
       image: image || undefined,
       categoryId,
-      type
+      type,
     };
 
     if (editId) {
-      updateMutation.mutate({ id: editId, request: payload });
+      // First update core fields, then toggle available separately
+      updateMutation.mutate(
+        { id: editId, request: payload },
+        {
+          onSuccess: () => {
+            // After saving main fields, also persist the available state
+            toggleAvailableMutation.mutate({ id: editId, available });
+          },
+        }
+      );
     } else {
       createMutation.mutate(payload);
     }
@@ -335,6 +360,39 @@ function AdminMenuManagement() {
                 </div>
               </div>
 
+              {/* Trạng thái món — chỉ hiện khi đang cập nhật */}
+              {editId && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground">Trạng thái món ăn</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAvailable(true)}
+                      className={cn(
+                        "flex-1 h-10 rounded-xl border text-xs font-bold transition-all cursor-pointer",
+                        available
+                          ? "bg-success/15 border-success/40 text-success"
+                          : "bg-accent/20 border-border text-muted-foreground hover:bg-accent/40"
+                      )}
+                    >
+                      ✓ Còn hàng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAvailable(false)}
+                      className={cn(
+                        "flex-1 h-10 rounded-xl border text-xs font-bold transition-all cursor-pointer",
+                        !available
+                          ? "bg-destructive/15 border-destructive/40 text-destructive"
+                          : "bg-accent/20 border-border text-muted-foreground hover:bg-accent/40"
+                      )}
+                    >
+                      ✕ Hết món
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Validation Error Details */}
               {formErrors.length > 0 && (
                 <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-1">
@@ -403,9 +461,19 @@ function AdminMenuManagement() {
                       </td>
                       <td className="p-4 font-mono font-semibold">{formatPrice(menuItem.price)}</td>
                       <td className="p-4">
-                        <span className={cn("text-xs font-bold", menuItem.available ? "text-success" : "text-destructive")}>
-                          {menuItem.available ? "Còn hàng" : "Hết món"}
-                        </span>
+                        <button
+                          onClick={() => toggleAvailableMutation.mutate({ menuItem })}
+                          disabled={toggleAvailableMutation.isPending}
+                          title={menuItem.available ? "Nhấn để đánh dấu Hết món" : "Nhấn để mở bán trở lại"}
+                          className={cn(
+                            "text-xs font-bold px-3 py-1 rounded-full border transition-all cursor-pointer hover:opacity-80 active:scale-95",
+                            menuItem.available
+                              ? "bg-success/10 border-success/30 text-success hover:bg-success/20"
+                              : "bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20"
+                          )}
+                        >
+                          {menuItem.available ? "✓ Còn hàng" : "✕ Hết món"}
+                        </button>
                       </td>
                       <td className="p-4 text-right flex justify-end gap-2">
                         <Button

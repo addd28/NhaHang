@@ -16,4 +16,6 @@ public interface MenuItemService {
     void updateMenuItem(Long id, UpdateMenuItemRequest request);
 
     void deleteMenuItem(Long id);
+
+    void toggleAvailable(Long id, boolean available);
 }

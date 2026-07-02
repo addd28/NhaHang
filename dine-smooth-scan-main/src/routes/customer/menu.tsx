@@ -415,33 +415,20 @@ function CustomerMenu() {
   const hasPendingRequest = pendingStatus?.hasPending || paymentRequestSent;
   const activePaymentRequest = pendingStatus?.request;
 
-  // Mutation: gửi yêu cầu thanh toán (KHÔNG đóng session)
+  // Mutation: gọi nhân viên thanh toán (KHÔNG tạo PaymentRequest)
   const customerCheckoutMutation = useMutation({
     mutationFn: async () => {
       if (!sessionId) throw new Error("Không tìm thấy phiên.");
-      return paymentApi.requestPayment(Number(sessionId), selectedPaymentMethod);
+      return paymentApi.callCashier(Number(sessionId));
     },
     onSuccess: (data: any) => {
       setPaymentRequestSent(true);
       setShowCheckoutConfirm(false);
-      refetchPending();
-      if (selectedPaymentMethod === "QR") {
-        setShowVietQRDialog(true);
-      } else {
-        toast.success("✅ Yêu cầu thanh toán đã được gửi! Thu ngân sẽ xác nhận sớm.");
-      }
+      toast.success("Đã gọi nhân viên thanh toán! Vui lòng đợi trong giây lát.");
     },
     onError: (error: any) => {
-      const errData = error.response?.data;
-      const errMsg = errData?.message || error.message || "Không thể gửi yêu cầu thanh toán.";
-      if (errData && errData.error === "ORDER_NOT_COMPLETED") {
-        setShowUnservedAlert(true);
-      } else if (errMsg.includes("PENDING_ALREADY_EXISTS")) {
-        toast.info("Yêu cầu thanh toán đã được gửi trước đó. Vui lòng chờ thu ngân xác nhận.");
-        setPaymentRequestSent(true);
-      } else {
-        toast.error(errMsg);
-      }
+      const errMsg = error.response?.data?.message || error.message || "Không thể gọi nhân viên thanh toán.";
+      toast.error(errMsg);
       setShowCheckoutConfirm(false);
     }
   });
@@ -527,7 +514,7 @@ function CustomerMenu() {
       });
     },
     onSuccess: () => {
-      toast.success("✓ Đã gửi yêu cầu gọi món. Nhân viên sẽ xác nhận đơn của bạn trong giây lát.");
+      toast.success("Đã gửi yêu cầu gọi món. Nhân viên sẽ xác nhận đơn của bạn trong giây lát.");
       clearCart();
       const preorderId = typeof window !== "undefined" ? sessionStorage.getItem("preorderReservationId") : null;
       if (preorderId) {
@@ -908,19 +895,20 @@ function CustomerMenu() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20">
                     <Clock className="h-4 w-4 text-amber-500 animate-pulse" />
                   </div>
-                  <p className="text-xs font-bold text-amber-600">Yêu cầu thanh toán đã được gửi</p>
-                  <p className="text-[10px] text-amber-500/80">Vui lòng chờ thu ngân xác nhận và đóng bàn</p>
-                  {activePaymentRequest?.paymentMethod === "QR" && (
-                    <Button
-                      onClick={() => {
-                        setShowVietQRDialog(true);
-                        setShowOrderedItemsSheet(false);
-                      }}
-                      className="mt-2 h-9 px-4 rounded-full bg-primary hover:text-black hover:bg-primary/90 text-primary-foreground font-bold text-xs cursor-pointer shadow-soft border-none"
-                    >
-                      Xem mã QR thanh toán
-                    </Button>
-                  )}
+                  <p className="text-xs font-bold text-amber-600">Đã gọi nhân viên thanh toán</p>
+                  <p className="text-[10px] text-amber-500/80">Vui lòng chờ nhân viên đến hỗ trợ thanh toán.</p>
+                  <Button
+                    onClick={() => {
+                      setPaymentRequestSent(false);
+                      toast.success("Đã hủy yêu cầu gọi thu ngân. Bạn có thể tiếp tục gọi món.");
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 h-8 rounded-full text-[10px] font-bold border-border bg-background/50 hover:bg-accent/40 cursor-pointer"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Tiếp tục gọi món
+                  </Button>
                 </div>
               ) : (
                 <Button
@@ -943,7 +931,7 @@ function CustomerMenu() {
                   className="h-12 w-full rounded-full bg-gradient-to-r from-success to-emerald-600 hover:opacity-95 text-white shadow-elegant font-bold cursor-pointer flex items-center justify-center gap-2 text-sm transition-all"
                 >
                   <CreditCard className="h-4 w-4" />
-                  Yêu cầu thanh toán
+                  Gọi nhân viên thanh toán
                 </Button>
               )}
             </div>
@@ -1343,21 +1331,21 @@ function CustomerMenu() {
 
 
 
-          {/* Payment Request Dialog — chọn hình thức thanh toán */}
+          {/* Payment Request Dialog — Gọi nhân viên thanh toán */}
           <Dialog open={showCheckoutConfirm} onOpenChange={setShowCheckoutConfirm}>
             <DialogContent className="max-w-md bg-card border border-border p-6 rounded-3xl text-left">
               <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-success" /> Yêu cầu thanh toán
+                <CreditCard className="h-5 w-5 text-success" /> Gọi nhân viên thanh toán
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Chọn hình thức thanh toán và gửi yêu cầu — Thu ngân sẽ xác nhận và đóng bàn cho bạn
+                Xác nhận gọi nhân viên đến bàn hỗ trợ thanh toán trực tiếp.
               </DialogDescription>
 
               <div className="space-y-5 mt-4">
                 {/* Tóm tắt hóa đơn */}
                 <div className="p-4 rounded-2xl bg-accent/20 border border-border/40 space-y-1.5 text-xs">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Tạm tính:</span>
+                    <span>Tạm tính món ăn:</span>
                     <span className="font-semibold">{formatPrice(orderedTotals.subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
@@ -1365,46 +1353,8 @@ function CustomerMenu() {
                     <span className="font-semibold">{formatPrice(orderedTotals.service + orderedTotals.tax)}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1 border-t border-border/40">
-                    <span className="font-bold text-sm text-foreground">Tổng thanh toán:</span>
+                    <span className="font-bold text-sm text-foreground">Tổng thanh toán dự kiến:</span>
                     <span className="font-display text-xl font-bold text-success">{formatPrice(orderedTotals.total)}</span>
-                  </div>
-                </div>
-
-                {/* Chọn hình thức thanh toán */}
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Chọn hình thức thanh toán</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {([
-                      { id: "CASH", label: "Tiền mặt", desc: "Trả tiền mặt cho thu ngân", icon: Banknote },
-                      { id: "QR", label: "Chuyển khoản QR", desc: "Chuyển khoản qua mã QR", icon: QrCode },
-                    ] as const).map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => setSelectedPaymentMethod(m.id)}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-2xl border text-left transition-all cursor-pointer",
-                          selectedPaymentMethod === m.id
-                            ? "border-primary bg-primary/10 shadow-soft"
-                            : "border-border bg-accent/10 hover:bg-accent/20"
-                        )}
-                      >
-                        <div className={cn(
-                          "flex h-9 w-9 items-center justify-center rounded-xl shrink-0",
-                          selectedPaymentMethod === m.id ? "bg-primary text-primary-foreground" : "bg-accent text-muted-foreground"
-                        )}>
-                          <m.icon className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className={cn("text-sm font-bold", selectedPaymentMethod === m.id ? "text-primary" : "text-foreground")}>
-                            {m.label}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">{m.desc}</p>
-                        </div>
-                        {selectedPaymentMethod === m.id && (
-                          <CheckCircle2 className="ml-auto h-4 w-4 text-primary shrink-0" />
-                        )}
-                      </button>
-                    ))}
                   </div>
                 </div>
 
@@ -1421,7 +1371,7 @@ function CustomerMenu() {
                     disabled={customerCheckoutMutation.isPending}
                     className="flex-1 h-11 rounded-full bg-gradient-to-r from-success to-emerald-600 text-white font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs flex items-center justify-center gap-1.5"
                   >
-                    {customerCheckoutMutation.isPending ? "Đang gửi..." : "Gửi yêu cầu"}
+                    {customerCheckoutMutation.isPending ? "Đang gọi..." : "Xác nhận gọi"}
                   </Button>
                 </div>
               </div>

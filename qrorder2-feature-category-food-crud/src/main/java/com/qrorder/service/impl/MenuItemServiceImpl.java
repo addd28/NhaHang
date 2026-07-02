@@ -112,6 +112,9 @@ public class MenuItemServiceImpl implements MenuItemService {
         menuItem.setImageUrl(imageVal);
         menuItem.setType(request.getType());
         menuItem.setCategory(category);
+        if (request.getAvailable() != null) {
+            menuItem.setAvailable(request.getAvailable());
+        }
 
         log.info("Entity Before Save - ID: {}, Name: {}, Price: {}, Description: {}, ImageUrl: {}, Type: {}, CategoryId: {}, Available: {}",
                 menuItem.getId(), menuItem.getName(), menuItem.getPrice(), menuItem.getDescription(), menuItem.getImageUrl(), menuItem.getType(),
@@ -126,6 +129,15 @@ public class MenuItemServiceImpl implements MenuItemService {
         MenuItem menuItem = menuItemRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("MENU_ITEM_NOT_FOUND", "Món ăn không tồn tại", HttpStatus.NOT_FOUND));
         menuItem.setAvailable(false);
+        menuItemRepository.save(menuItem);
+    }
+
+    @Override
+    @Transactional
+    public void toggleAvailable(Long id, boolean available) {
+        MenuItem menuItem = menuItemRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("MENU_ITEM_NOT_FOUND", "Món ăn không tồn tại", HttpStatus.NOT_FOUND));
+        menuItem.setAvailable(available);
         menuItemRepository.save(menuItem);
     }
 
