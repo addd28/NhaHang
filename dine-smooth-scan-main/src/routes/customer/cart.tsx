@@ -33,7 +33,6 @@ function CustomerCart() {
 
   const paymentMethods = [
     { id: "cash", name: "Tiền mặt", icon: Banknote, note: "Thanh toán tại bàn" },
-    { id: "paypal", name: "PayPal", icon: Wallet, note: "Trực tuyến an toàn" },
     { id: "vnpay", name: "VNPay", icon: CreditCard, note: "Quét mã QR" },
     { id: "momo", name: "MoMo", icon: Wallet, note: "Ví MoMo" },
   ];

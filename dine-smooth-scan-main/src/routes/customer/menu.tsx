@@ -469,7 +469,6 @@ function CustomerMenu() {
 
   const paymentMethods = [
     { id: "cash", name: "Tiền mặt", icon: Banknote, note: "Thanh toán tại bàn" },
-    { id: "paypal", name: "PayPal", icon: Wallet, note: "Trực tuyến an toàn" },
     { id: "vnpay", name: "VNPay", icon: CreditCard, note: "Quét mã QR" },
     { id: "momo", name: "MoMo", icon: Wallet, note: "Ví MoMo" },
   ];
@@ -1378,7 +1377,6 @@ function CustomerMenu() {
                     {([
                       { id: "CASH", label: "Tiền mặt", desc: "Trả tiền mặt cho thu ngân", icon: Banknote },
                       { id: "QR", label: "Chuyển khoản QR", desc: "Chuyển khoản qua mã QR", icon: QrCode },
-                      { id: "PAYPAL", label: "PayPal", desc: "Thanh toán trực tuyến", icon: Wallet },
                     ] as const).map((m) => (
                       <button
                         key={m.id}
