@@ -104,7 +104,7 @@ public class PaymentServiceImpl
                 Long menuItemId = orderItem.getMenuItem().getId();
                 List<String> optNames = orderItem.getOptions() != null ?
                         orderItem.getOptions().stream()
-                                .map(opt -> String.format("%s (+$%.2f)", opt.getOptionName(), opt.getOptionPrice()))
+                                .map(opt -> String.format("%s (+%,.0f ₫)", opt.getOptionName(), opt.getOptionPrice()))
                                 .sorted().toList() :
                         new ArrayList<>();
                 String optionsKey = String.join(",", optNames);
@@ -136,7 +136,7 @@ public class PaymentServiceImpl
                 Long menuItemId = orderItem.getMenuItem().getId();
                 List<String> optNames = orderItem.getOptions() != null ?
                         orderItem.getOptions().stream()
-                                .map(opt -> String.format("%s (+$%.2f)", opt.getOptionName(), opt.getOptionPrice()))
+                                .map(opt -> String.format("%s (+%,.0f ₫)", opt.getOptionName(), opt.getOptionPrice()))
                                 .sorted().toList() :
                         new ArrayList<>();
                 String optionsKey = String.join(",", optNames);
@@ -217,9 +217,9 @@ public class PaymentServiceImpl
                         orders
                 );
 
-        double serviceCharge = 0;
+        double serviceCharge = subtotal * 0.05;
 
-        double taxAmount = 0;
+        double taxAmount = subtotal * 0.08;
 
         double discountAmount = 0;
 
@@ -731,9 +731,9 @@ public class PaymentServiceImpl
             document.add(new com.lowagie.text.Paragraph("Ngay xuat: " + LocalDateTime.now().toString(), bodyFont));
             document.add(new com.lowagie.text.Paragraph("Tong so hoa don: " + list.size(), bodyFont));
             double total = list.stream().mapToDouble(PaymentHistoryResponse::getAmount).sum();
-            document.add(new com.lowagie.text.Paragraph("Tong doanh thu: $" + String.format("%.2f", total), bodyFont));
+            document.add(new com.lowagie.text.Paragraph("Tong doanh thu: " + String.format("%,.0f VND", total), bodyFont));
             document.add(new com.lowagie.text.Paragraph(" ", bodyFont));
-
+ 
             com.lowagie.text.Table table = new com.lowagie.text.Table(7);
             table.setWidth(100);
             table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("Ma HD", headerFont)));
@@ -743,14 +743,14 @@ public class PaymentServiceImpl
             table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("Tong tien", headerFont)));
             table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("Thoi gian", headerFont)));
             table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("Thu ngan", headerFont)));
-
+ 
             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
             for (PaymentHistoryResponse res : list) {
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("INV-" + res.getPaymentId(), bodyFont)));
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(res.getTableNumber() != null ? "Ban " + res.getTableNumber() : "—", bodyFont)));
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(res.getCustomerName(), bodyFont)));
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(res.getPaymentMethod(), bodyFont)));
-                table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("$" + String.format("%.2f", res.getAmount()), bodyFont)));
+                table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(String.format("%,.0f VND", res.getAmount()), bodyFont)));
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(res.getPaidAt() != null ? res.getPaidAt().format(formatter) : "", bodyFont)));
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(res.getConfirmedBy() != null ? res.getConfirmedBy() : "System", bodyFont)));
             }
@@ -806,17 +806,17 @@ public class PaymentServiceImpl
                 }
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(itemName, bodyFont)));
                 table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(String.valueOf(item.getQuantity()), bodyFont)));
-                table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("$" + String.format("%.2f", item.getUnitPrice()), bodyFont)));
-                table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph("$" + String.format("%.2f", item.getSubtotal()), bodyFont)));
+                table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(String.format("%,.0f VND", item.getUnitPrice()), bodyFont)));
+                table.addCell(new com.lowagie.text.Cell(new com.lowagie.text.Paragraph(String.format("%,.0f VND", item.getSubtotal()), bodyFont)));
             }
             document.add(table);
-
+  
             document.add(new com.lowagie.text.Paragraph("--------------------------------------------------------------------------------", bodyFont));
-            document.add(new com.lowagie.text.Paragraph("Tam tinh (Subtotal): $" + String.format("%.2f", res.getSubtotal()), bodyFont));
-            document.add(new com.lowagie.text.Paragraph("Phi dich vu (Service charge 5%): $" + String.format("%.2f", res.getServiceCharge()), bodyFont));
-            document.add(new com.lowagie.text.Paragraph("Thue (VAT 8%): $" + String.format("%.2f", res.getTaxAmount()), bodyFont));
-            document.add(new com.lowagie.text.Paragraph("Giam gia (Discount): $" + String.format("%.2f", res.getDiscountAmount()), bodyFont));
-            document.add(new com.lowagie.text.Paragraph("Tong cong (Total Amount): $" + String.format("%.2f", res.getAmount()), titleFont));
+            document.add(new com.lowagie.text.Paragraph("Tam tinh (Subtotal): " + String.format("%,.0f VND", res.getSubtotal()), bodyFont));
+            document.add(new com.lowagie.text.Paragraph("Phi dich vu (Service charge 5%): " + String.format("%,.0f VND", res.getServiceCharge()), bodyFont));
+            document.add(new com.lowagie.text.Paragraph("Thue (VAT 8%): " + String.format("%,.0f VND", res.getTaxAmount()), bodyFont));
+            document.add(new com.lowagie.text.Paragraph("Giam gia (Discount): " + String.format("%,.0f VND", res.getDiscountAmount()), bodyFont));
+            document.add(new com.lowagie.text.Paragraph("Tong cong (Total Amount): " + String.format("%,.0f VND", res.getAmount()), titleFont));
             document.add(new com.lowagie.text.Paragraph("\nCam on quy khach! Thank you!", subTitleFont));
 
             document.close();

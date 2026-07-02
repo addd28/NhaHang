@@ -100,7 +100,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             // Pizza Margherita Reserva
             MenuItem pizza1 = MenuItem.builder()
                     .name("Margherita Reserva")
-                    .price(18.0)
+                    .price(180000.0)
                     .description("San Marzano tomato, fior di latte, basil, extra virgin olive oil.")
                     .imageUrl("pizza")
                     .available(true)
@@ -124,8 +124,8 @@ public class DatabaseSeeder implements CommandLineRunner {
             sizeGroup = optionGroupRepository.save(sizeGroup);
 
             itemOptionRepository.save(ItemOption.builder().optionGroup(sizeGroup).optionCode("SIZE_S").name("Small").price(0.0).displayOrder(1).available(true).deleted(false).build());
-            itemOptionRepository.save(ItemOption.builder().optionGroup(sizeGroup).optionCode("SIZE_M").name("Medium").price(3.0).displayOrder(2).available(true).deleted(false).build());
-            itemOptionRepository.save(ItemOption.builder().optionGroup(sizeGroup).optionCode("SIZE_L").name("Large").price(5.0).displayOrder(3).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(sizeGroup).optionCode("SIZE_M").name("Medium").price(30000.0).displayOrder(2).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(sizeGroup).optionCode("SIZE_L").name("Large").price(50000.0).displayOrder(3).available(true).deleted(false).build());
 
             OptionGroup toppingsGroup = OptionGroup.builder()
                     .name("Toppings")
@@ -141,25 +141,25 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .build();
             toppingsGroup = optionGroupRepository.save(toppingsGroup);
 
-            itemOptionRepository.save(ItemOption.builder().optionGroup(toppingsGroup).optionCode("TOPPING_CHEESE").name("Cheese").price(2.0).displayOrder(1).available(true).deleted(false).build());
-            itemOptionRepository.save(ItemOption.builder().optionGroup(toppingsGroup).optionCode("TOPPING_BACON").name("Bacon").price(2.5).displayOrder(2).available(true).deleted(false).build());
-            itemOptionRepository.save(ItemOption.builder().optionGroup(toppingsGroup).optionCode("TOPPING_MUSHROOM").name("Mushroom").price(1.5).displayOrder(3).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(toppingsGroup).optionCode("TOPPING_CHEESE").name("Cheese").price(20000.0).displayOrder(1).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(toppingsGroup).optionCode("TOPPING_BACON").name("Bacon").price(25000.0).displayOrder(2).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(toppingsGroup).optionCode("TOPPING_MUSHROOM").name("Mushroom").price(15000.0).displayOrder(3).available(true).deleted(false).build());
 
             // Truffle Funghi
-            menuItemRepository.save(MenuItem.builder().name("Truffle Funghi").price(22.0)
+            menuItemRepository.save(MenuItem.builder().name("Truffle Funghi").price(220000.0)
                     .description("Wild mushrooms, mozzarella, black truffle oil, thyme.")
                     .imageUrl("pizza").available(true).type(MenuItemType.KITCHEN).category(pizzaCat).build());
 
             // Burgers
-            menuItemRepository.save(MenuItem.builder().name("Wagyu Smash").price(24.0)
+            menuItemRepository.save(MenuItem.builder().name("Wagyu Smash").price(240000.0)
                     .description("Double wagyu patty, aged cheddar, caramelized onion, brioche.")
                     .imageUrl("burger").available(true).type(MenuItemType.KITCHEN).category(burgerCat).build());
-            menuItemRepository.save(MenuItem.builder().name("Smoky BBQ Stack").price(21.0)
+            menuItemRepository.save(MenuItem.builder().name("Smoky BBQ Stack").price(210000.0)
                     .description("Bacon, smoked gouda, crispy onions, bourbon BBQ glaze.")
                     .imageUrl("burger").available(true).type(MenuItemType.KITCHEN).category(burgerCat).build());
 
             // Drinks
-            MenuItem drink1 = MenuItem.builder().name("Garden Mojito").price(12.0)
+            MenuItem drink1 = MenuItem.builder().name("Garden Mojito").price(120000.0)
                     .description("White rum, fresh mint, lime, cane sugar, sparkling water.")
                     .imageUrl("drink").available(true).type(MenuItemType.INSTANT).category(drinksCat).build();
             drink1 = menuItemRepository.save(drink1);
@@ -168,15 +168,15 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .selectionType(SelectionType.MULTIPLE).required(false).minSelect(0).maxSelect(2)
                     .displayOrder(1).available(true).deleted(false).menuItem(drink1).build();
             drinkCustom = optionGroupRepository.save(drinkCustom);
-            itemOptionRepository.save(ItemOption.builder().optionGroup(drinkCustom).optionCode("ADDON_EXTRA_MINT").name("Extra Mint").price(0.5).displayOrder(1).available(true).deleted(false).build());
-            itemOptionRepository.save(ItemOption.builder().optionGroup(drinkCustom).optionCode("ADDON_EXTRA_LIME").name("Extra Lime").price(0.5).displayOrder(2).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(drinkCustom).optionCode("ADDON_EXTRA_MINT").name("Extra Mint").price(5000.0).displayOrder(1).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(drinkCustom).optionCode("ADDON_EXTRA_LIME").name("Extra Lime").price(5000.0).displayOrder(2).available(true).deleted(false).build());
 
-            menuItemRepository.save(MenuItem.builder().name("Yuzu Spritz").price(14.0)
+            menuItemRepository.save(MenuItem.builder().name("Yuzu Spritz").price(140000.0)
                     .description("Prosecco, yuzu, elderflower, soda, fresh citrus.")
                     .imageUrl("drink").available(false).type(MenuItemType.INSTANT).category(drinksCat).build());
 
             // Coffee
-            MenuItem coffee1 = MenuItem.builder().name("Velvet Latte").price(6.0)
+            MenuItem coffee1 = MenuItem.builder().name("Velvet Latte").price(60000.0)
                     .description("Double shot espresso, silky steamed milk, light foam art.")
                     .imageUrl("coffee").available(true).type(MenuItemType.INSTANT).category(coffeeCat).build();
             coffee1 = menuItemRepository.save(coffee1);
@@ -185,23 +185,23 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .selectionType(SelectionType.MULTIPLE).required(false).minSelect(0).maxSelect(2)
                     .displayOrder(1).available(true).deleted(false).menuItem(coffee1).build();
             coffeeCustom = optionGroupRepository.save(coffeeCustom);
-            itemOptionRepository.save(ItemOption.builder().optionGroup(coffeeCustom).optionCode("ADDON_OAT_MILK").name("Oat Milk").price(1.0).displayOrder(1).available(true).deleted(false).build());
-            itemOptionRepository.save(ItemOption.builder().optionGroup(coffeeCustom).optionCode("ADDON_EXTRA_SHOT").name("Extra Espresso Shot").price(1.5).displayOrder(2).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(coffeeCustom).optionCode("ADDON_OAT_MILK").name("Oat Milk").price(10000.0).displayOrder(1).available(true).deleted(false).build());
+            itemOptionRepository.save(ItemOption.builder().optionGroup(coffeeCustom).optionCode("ADDON_EXTRA_SHOT").name("Extra Espresso Shot").price(15000.0).displayOrder(2).available(true).deleted(false).build());
 
-            menuItemRepository.save(MenuItem.builder().name("Iced Mocha Noir").price(7.0)
+            menuItemRepository.save(MenuItem.builder().name("Iced Mocha Noir").price(70000.0)
                     .description("Cold brew, dark chocolate, oat milk, vanilla.")
                     .imageUrl("coffee").available(true).type(MenuItemType.INSTANT).category(coffeeCat).build());
 
             // Desserts
-            menuItemRepository.save(MenuItem.builder().name("Molten Chocolate").price(11.0)
+            menuItemRepository.save(MenuItem.builder().name("Molten Chocolate").price(110000.0)
                     .description("Warm chocolate fondant, vanilla bean ice cream, fresh berries.")
                     .imageUrl("dessert").available(true).type(MenuItemType.KITCHEN).category(dessertCat).build());
-            menuItemRepository.save(MenuItem.builder().name("Tiramisu Classico").price(10.0)
+            menuItemRepository.save(MenuItem.builder().name("Tiramisu Classico").price(100000.0)
                     .description("Espresso-soaked savoiardi, cocoa dust.")
                     .imageUrl("dessert").available(true).type(MenuItemType.KITCHEN).category(dessertCat).build());
 
             // Specials
-            MenuItem special1 = MenuItem.builder().name("Wagyu Tenderloin").price(58.0)
+            MenuItem special1 = MenuItem.builder().name("Wagyu Tenderloin").price(580000.0)
                     .description("Grade A5 wagyu, herb butter, charred asparagus, truffle mash.")
                     .imageUrl("special").available(true).type(MenuItemType.KITCHEN).category(specialCat).build();
             special1 = menuItemRepository.save(special1);
@@ -215,7 +215,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             itemOptionRepository.save(ItemOption.builder().optionGroup(cookingGroup).optionCode("COOK_MEDIUM").name("Medium").price(0.0).displayOrder(3).available(true).deleted(false).build());
             itemOptionRepository.save(ItemOption.builder().optionGroup(cookingGroup).optionCode("COOK_WELL_DONE").name("Well Done").price(0.0).displayOrder(4).available(true).deleted(false).build());
 
-            menuItemRepository.save(MenuItem.builder().name("Seared Scallops").price(38.0)
+            menuItemRepository.save(MenuItem.builder().name("Seared Scallops").price(380000.0)
                     .description("Pan-seared scallops, cauliflower purée, brown butter caviar.")
                     .imageUrl("special").available(true).type(MenuItemType.KITCHEN).category(specialCat).build());
         }

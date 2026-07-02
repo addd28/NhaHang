@@ -32,8 +32,12 @@ import axiosInstance from "../../api/axiosInstance";
 import logoImg from "../../assets/logo.png";
 
 const formatPrice = (val?: number | null) => {
-  if (val === null || val === undefined) return "0 đ";
-  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+  if (val === null || val === undefined) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(val);
 };
 
 const menuSearchSchema = z.object({
@@ -138,8 +142,8 @@ const getMenuItemExtraDetails = (name: string) => {
     };
   }
   return {
-    ingredients: ["Fresh ingredients"],
-    calories: 350,
+    ingredients: [] as string[],
+    calories: undefined as number | undefined,
     allergens: [] as string[],
     rating: 4.5,
   };
@@ -393,6 +397,7 @@ function CustomerMenu() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"CASH" | "QR" | "PAYPAL">("CASH");
   const [paymentRequestSent, setPaymentRequestSent] = useState(false);
   const [showVietQRDialog, setShowVietQRDialog] = useState(false);
+  const [showUnservedAlert, setShowUnservedAlert] = useState(false);
 
   const handleCopy = (text: string, message: string) => {
     navigator.clipboard.writeText(text);
@@ -427,8 +432,11 @@ function CustomerMenu() {
       }
     },
     onError: (error: any) => {
-      const errMsg = error.response?.data?.message || error.message || "Không thể gửi yêu cầu thanh toán.";
-      if (errMsg.includes("PENDING_ALREADY_EXISTS")) {
+      const errData = error.response?.data;
+      const errMsg = errData?.message || error.message || "Không thể gửi yêu cầu thanh toán.";
+      if (errData && errData.error === "ORDER_NOT_COMPLETED") {
+        setShowUnservedAlert(true);
+      } else if (errMsg.includes("PENDING_ALREADY_EXISTS")) {
         toast.info("Yêu cầu thanh toán đã được gửi trước đó. Vui lòng chờ thu ngân xác nhận.");
         setPaymentRequestSent(true);
       } else {
@@ -918,7 +926,18 @@ function CustomerMenu() {
               ) : (
                 <Button
                   onClick={() => {
-                    setShowCheckoutConfirm(true);
+                    const hasUnserved = orderedItems.some(
+                      (item: any) =>
+                        item.status === "WAIT_CONFIRM" ||
+                        item.status === "PENDING" ||
+                        item.status === "PREPARING" ||
+                        item.status === "DONE"
+                    );
+                    if (hasUnserved) {
+                      setShowUnservedAlert(true);
+                    } else {
+                      setShowCheckoutConfirm(true);
+                    }
                     setShowOrderedItemsSheet(false);
                   }}
                   disabled={customerCheckoutMutation.isPending}
@@ -1449,84 +1468,101 @@ function CustomerMenu() {
             </DialogContent>
           </Dialog>
 
+          {/* Unserved Items Alert Dialog */}
+          <Dialog open={showUnservedAlert} onOpenChange={setShowUnservedAlert}>
+            <DialogContent className="max-w-xs rounded-3xl p-6 text-center space-y-4">
+              <DialogTitle className="text-center font-display font-bold text-base flex flex-col items-center gap-2">
+                <span className="text-3xl">❌</span> Chưa thể thanh toán
+              </DialogTitle>
+              <DialogDescription className="text-center text-xs text-muted-foreground pt-1 leading-relaxed">
+                Một số món ăn vẫn đang được chuẩn bị hoặc chưa được phục vụ. Vui lòng đợi nhân viên mang món đầy đủ trước khi yêu cầu thanh toán.
+              </DialogDescription>
+              <div className="pt-2">
+                <Button onClick={() => setShowUnservedAlert(false)} className="w-full rounded-full h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                  Đồng ý
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* VietQR Payment Details Dialog */}
           <Dialog open={showVietQRDialog} onOpenChange={setShowVietQRDialog}>
-            <DialogContent className="max-w-md w-[92vw] sm:w-full bg-card border border-border p-4 sm:p-6 rounded-3xl text-left text-foreground">
-              <DialogTitle className="font-display text-lg sm:text-xl font-bold flex items-center gap-2 border-b border-border/60 pb-2 sm:pb-3">
-                <QrCode className="h-4 w-4 sm:h-5 sm:w-5 text-primary animate-pulse" /> Thanh toán VietQR
+            <DialogContent className="max-w-[340px] w-[90vw] bg-card border border-border p-4 rounded-3xl text-left text-foreground">
+              <DialogTitle className="font-display text-sm sm:text-base font-bold flex items-center gap-2 border-b border-border/60 pb-2">
+                <QrCode className="h-4 w-4 text-primary animate-pulse" /> Thanh toán VietQR
               </DialogTitle>
               <DialogDescription className="sr-only">
                 Thông tin thanh toán chuyển khoản VietQR cho hóa đơn của bạn.
               </DialogDescription>
               {activePaymentRequest && (
-                <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+                <div className="space-y-3 mt-3">
                   {/* QR Image */}
-                  <div className="flex flex-col items-center justify-center p-2.5 sm:p-4 bg-white rounded-2xl border border-gray-100 shadow-soft">
+                  <div className="flex flex-col items-center justify-center p-2 bg-white rounded-2xl border border-gray-100 shadow-soft">
                     {activePaymentRequest.qrUrl ? (
                       <img
                         src={activePaymentRequest.qrUrl}
                         alt="Mã QR thanh toán VietQR"
-                        className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
+                        className="w-32 h-32 object-contain"
                       />
                     ) : (
-                      <div className="w-36 h-36 sm:w-44 sm:h-44 bg-accent/20 rounded-xl flex items-center justify-center text-[10px] sm:text-xs text-muted-foreground animate-pulse">
+                      <div className="w-32 h-32 bg-accent/20 rounded-xl flex items-center justify-center text-[10px] text-muted-foreground animate-pulse">
                         Đang tạo mã QR...
                       </div>
                     )}
-                    <span className="text-[9px] sm:text-[10px] text-muted-foreground mt-1.5 sm:mt-2 font-mono flex items-center gap-1">
-                      <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-success" /> Giao dịch bảo mật bằng VietQR
+                    <span className="text-[9px] text-muted-foreground mt-1 font-mono flex items-center gap-1">
+                      <Lock className="h-2.5 w-2.5 text-success" /> Giao dịch bảo mật bằng VietQR
                     </span>
                   </div>
 
                   {/* Total Amount */}
-                  <div className="text-center bg-primary/5 border border-primary/10 rounded-2xl p-2.5 sm:p-4">
-                    <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Tổng tiền thanh toán</p>
-                    <p className="font-display text-lg sm:text-xl font-bold text-primary mt-0.5 sm:mt-1">
+                  <div className="text-center bg-primary/5 border border-primary/10 rounded-2xl p-2">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Tổng tiền thanh toán</p>
+                    <p className="font-display text-base font-bold text-primary mt-0.5">
                       {formatPrice(activePaymentRequest.amount)}
                     </p>
                   </div>
 
                   {/* Transfer Details */}
-                  <div className="bg-accent/25 border border-border/40 rounded-2xl p-2.5 sm:p-4 space-y-2 sm:space-y-2.5 text-xs">
+                  <div className="bg-accent/25 border border-border/40 rounded-2xl p-2.5 space-y-2 text-[11px]">
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Ngân hàng:</span>
                       <span className="font-bold">{activePaymentRequest.bankName || "MB Bank"}</span>
                     </div>
-                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5 sm:pt-2">
+                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5">
                       <span className="text-muted-foreground">Chủ tài khoản:</span>
                       <span className="font-bold">{activePaymentRequest.accountName || "CHILL CLUB"}</span>
                     </div>
-                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5 sm:pt-2">
+                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5">
                       <span className="text-muted-foreground">Số tài khoản:</span>
-                      <div className="flex items-center gap-1.5 font-bold">
+                      <div className="flex items-center gap-1 font-bold">
                         <span className="font-mono">{activePaymentRequest.bankAccount || "0123456789"}</span>
                         <button
                           onClick={() => handleCopy(activePaymentRequest.bankAccount || "0123456789", "Đã sao chép số tài khoản!")}
-                          className="p-1 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
+                          className="p-0.5 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
                           title="Sao chép số tài khoản"
                         >
-                          <Copy className="h-3.5 w-3.5" />
+                          <Copy className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5 sm:pt-2">
+                    <div className="flex justify-between items-center border-t border-border/10 pt-1.5">
                       <span className="text-muted-foreground">Nội dung CK:</span>
-                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                      <div className="flex items-center gap-1 font-bold text-primary">
                         <span className="font-mono">{activePaymentRequest.transferContent || activePaymentRequest.transactionCode}</span>
                         <button
                           onClick={() => handleCopy(activePaymentRequest.transferContent || activePaymentRequest.transactionCode || "", "Đã sao chép nội dung chuyển khoản!")}
-                          className="p-1 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
+                          className="p-0.5 hover:bg-accent rounded text-primary cursor-pointer transition-colors"
                           title="Sao chép nội dung chuyển khoản"
                         >
-                          <Copy className="h-3.5 w-3.5" />
+                          <Copy className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
                   </div>
 
                   {/* Warning */}
-                  <div className="bg-warning/10 border border-warning/20 text-warning rounded-2xl p-2.5 sm:p-4 text-[10px] sm:text-[11px] leading-relaxed flex gap-2 items-start">
-                    <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 mt-0.5" />
+                  <div className="bg-warning/10 border border-warning/20 text-warning rounded-2xl p-2.5 text-[10px] leading-relaxed flex gap-2 items-start">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <p>
                       <strong>Lưu ý:</strong> Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống đối chiếu. Sau khi chuyển khoản hãy chờ nhân viên xác nhận.
                     </p>
@@ -1535,7 +1571,7 @@ function CustomerMenu() {
                   {/* Footer Action */}
                   <Button
                     onClick={() => setShowVietQRDialog(false)}
-                    className="w-full h-10 sm:h-11 rounded-full bg-gradient-primary text-primary-foreground font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs flex items-center justify-center gap-1.5"
+                    className="w-full h-9 rounded-full bg-gradient-primary text-primary-foreground font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs flex items-center justify-center gap-1.5"
                   >
                     Tôi đã chuyển khoản
                   </Button>
@@ -1831,20 +1867,24 @@ function MenuItemDetail({
             <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 text-left space-y-5">
               <div>
                 <h2 className="font-display text-2xl font-bold tracking-tight">{item.name}</h2>
-                <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>{item.calories || 350} cal</span>
-                </div>
+                {item.calories && (
+                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{item.calories} cal</span>
+                  </div>
+                )}
               </div>
 
               <p className="mt-3 text-sm text-muted-foreground">{item.description}</p>
 
-              <Section label="Thành phần">
-                <div className="flex flex-wrap gap-1.5">
-                  {(item.ingredients || ["Fresh ingredients"]).map((i) => (
-                    <span key={i} className="rounded-full bg-accent px-2.5 py-1 text-xs">{i}</span>
-                  ))}
-                </div>
-              </Section>
+              {item.ingredients && item.ingredients.length > 0 && (
+                <Section label="Thành phần">
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.ingredients.map((i) => (
+                      <span key={i} className="rounded-full bg-accent px-2.5 py-1 text-xs">{i}</span>
+                    ))}
+                  </div>
+                </Section>
+              )}
 
               {item.allergens && item.allergens.length > 0 && (
                 <Section label="Dị ứng ứng">

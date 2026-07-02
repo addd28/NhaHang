@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { 
   Soup, UtensilsCrossed, QrCode,
-  ArrowRight, BookOpenCheck, Flame
+  ArrowRight, BookOpenCheck, Flame, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { MenuItem } from "../types";
 import { cn } from "@/lib/utils";
 import { SiteLayout } from "@/components/SiteLayout";
+import { BookingDialog } from "../components/BookingDialog";
 
 export const Route = createFileRoute("/menu")({
   component: PublicMenuPage,
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/menu")({
 
 function PublicMenuPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   // Fetch categories
   const { data: categories = [] } = useQuery({
@@ -33,9 +35,13 @@ function PublicMenuPage() {
   });
 
   const filteredMenuItems = useMemo(() => {
-    if (activeCategory === "all") return menuItems.filter(item => item.available);
-    return menuItems.filter(
-      item => item.available && item.category && item.category.toLowerCase() === activeCategory.toLowerCase()
+    const available = menuItems.filter(item => item.available);
+    if (activeCategory === "all") return available;
+    return available.filter(
+      item => {
+        const catName = item.categoryName || item.category;
+        return catName && catName.toLowerCase() === activeCategory.toLowerCase();
+      }
     );
   }, [menuItems, activeCategory]);
 
@@ -129,7 +135,7 @@ function PublicMenuPage() {
                     <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                       <div className="space-y-2">
                         <Badge variant="outline" className="border-primary/20 text-primary text-[9px] uppercase font-bold px-2 py-0">
-                          {item.category}
+                          {item.categoryName || item.category}
                         </Badge>
                         <h4 className="font-bold text-base text-foreground line-clamp-1 group-hover:text-primary transition-colors">
                           {item.name}
@@ -145,21 +151,23 @@ function PublicMenuPage() {
             </div>
           )}
 
-          {/* Quick link to table menu */}
+          {/* Quick link to booking instead of direct table entry */}
           <div className="bg-card border border-border/40 p-8 rounded-3xl max-w-3xl mx-auto space-y-4">
-            <h3 className="font-bold text-lg text-foreground">Bạn đang ngồi trực tiếp tại bàn ăn?</h3>
+            <h3 className="font-bold text-lg text-foreground">Bạn muốn đặt bàn trải nghiệm trực tiếp?</h3>
             <p className="text-xs text-muted-foreground">
-              Mã QR trên bàn ăn của bạn chứa khóa phiên an toàn. Vui lòng bấm vào nút phía dưới hoặc quét mã QR tại bàn để xem giá tiền và gửi yêu cầu chuẩn bị tới nhà bếp trực tiếp.
+              Đảm bảo một không gian riêng tư và vị trí ngồi đẹp nhất bằng cách đặt bàn trực tuyến trước. Chúng tôi sẽ chuẩn bị chu đáo để đón tiếp bạn.
             </p>
-            <Link to="/customer/menu">
-              <Button className="mt-2 bg-gradient-primary hover:opacity-95 text-primary-foreground font-bold px-8 py-3 rounded-full flex items-center gap-2 mx-auto cursor-pointer shadow-elegant">
-                <QrCode className="h-4 w-4" />
-                Vào bàn gọi món có giá tiền ngay
-              </Button>
-            </Link>
+            <Button 
+              onClick={() => setBookingOpen(true)}
+              className="mt-2 bg-gradient-primary hover:opacity-95 text-primary-foreground font-bold px-8 py-3 rounded-full flex items-center gap-2 mx-auto cursor-pointer shadow-elegant border-none"
+            >
+              <Calendar className="h-4 w-4" />
+              Đặt bàn ngay
+            </Button>
           </div>
         </div>
       </div>
+      <BookingDialog open={bookingOpen} onOpenChange={setBookingOpen} />
     </SiteLayout>
   );
 }

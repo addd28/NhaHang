@@ -12,7 +12,7 @@ export function SiteFooter() {
               CHILL CLUB
             </span>
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-              Premium Restaurant
+              Bia Hơi Ngon · Est. 2024
             </span>
           </div>
           <p className="text-sm text-foreground/75 leading-relaxed max-w-sm font-sans font-light">
@@ -29,7 +29,7 @@ export function SiteFooter() {
           <ul className="space-y-3 text-sm text-foreground/80 font-light">
             <li className="flex items-start gap-2.5">
               <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              <span>Quận 1, TP. Hồ Chí Minh</span>
+              <span>Hoàn Kiếm, Hà Nội</span>
             </li>
             <li className="flex items-start gap-2.5">
               <Clock className="h-4 w-4 text-primary shrink-0 mt-0.5" />

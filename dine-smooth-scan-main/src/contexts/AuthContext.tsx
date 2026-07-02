@@ -14,14 +14,35 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("adminUser");
+      if (stored && stored !== "undefined" && stored !== "null") {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("adminToken");
+      return stored && stored !== "undefined" && stored !== "null" ? stored : null;
+    }
+    return null;
+  });
 
   useEffect(() => {
     const storedUser = localStorage.getItem("adminUser");
     const storedToken = localStorage.getItem("adminToken");
     if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {}
       setToken(storedToken);
     }
   }, []);

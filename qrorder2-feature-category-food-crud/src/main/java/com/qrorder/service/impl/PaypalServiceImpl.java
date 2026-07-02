@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
+import com.qrorder.exception.BusinessException;
+import org.springframework.http.HttpStatus;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -53,15 +55,20 @@ public class PaypalServiceImpl implements PaypalService {
             throw new RuntimeException("Session is not open");
         }
 
-        // Check if any item in the session is PENDING, PREPARING, or DONE
+        // Check if any item in the session is WAIT_CONFIRM, PENDING, PREPARING, or DONE
         List<Order> orders = orderRepository.findBySessionId(sessionId);
         for (Order order : orders) {
             if (order.getItems() != null) {
                 for (OrderItem item : order.getItems()) {
-                    if (item.getStatus() == OrderItemStatus.PENDING ||
+                    if (item.getStatus() == OrderItemStatus.WAIT_CONFIRM ||
+                            item.getStatus() == OrderItemStatus.PENDING ||
                             item.getStatus() == OrderItemStatus.PREPARING ||
                             item.getStatus() == OrderItemStatus.DONE) {
-                        throw new RuntimeException("Còn món chưa được phục vụ");
+                        throw new BusinessException(
+                                "ORDER_NOT_COMPLETED",
+                                "Một số món ăn vẫn chưa được phục vụ. Vui lòng đợi nhân viên mang món đầy đủ trước khi thanh toán.",
+                                HttpStatus.BAD_REQUEST
+                        );
                     }
                 }
             }

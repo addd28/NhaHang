@@ -159,8 +159,8 @@ public class TableSessionServiceImpl
             }
         }
 
-        double serviceCharge = 0;
-        double taxAmount = 0;
+        double serviceCharge = subtotal * 0.05;
+        double taxAmount = subtotal * 0.08;
         double discountAmount = 0;
         double finalAmount = subtotal + serviceCharge + taxAmount - discountAmount;
 

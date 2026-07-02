@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.qrorder.exception.BusinessException;
+import org.springframework.http.HttpStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +58,25 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
         // Guard: chỉ cho phép 1 yêu cầu PENDING mỗi lúc
         if (paymentRequestRepository.existsBySessionIdAndStatus(sessionId, PaymentRequestStatus.PENDING)) {
             throw new RuntimeException("PENDING_ALREADY_EXISTS: Đã có yêu cầu thanh toán đang chờ xác nhận.");
+        }
+
+        // Chặn thanh toán nếu còn món chưa phục vụ xong
+        List<Order> orders = orderRepository.findBySessionId(sessionId);
+        for (Order order : orders) {
+            if (order.getItems() != null) {
+                for (OrderItem item : order.getItems()) {
+                    if (item.getStatus() == OrderItemStatus.WAIT_CONFIRM ||
+                            item.getStatus() == OrderItemStatus.PENDING ||
+                            item.getStatus() == OrderItemStatus.PREPARING ||
+                            item.getStatus() == OrderItemStatus.DONE) {
+                        throw new BusinessException(
+                                "ORDER_NOT_COMPLETED",
+                                "Một số món ăn vẫn chưa được phục vụ. Vui lòng đợi nhân viên mang món đầy đủ trước khi thanh toán.",
+                                HttpStatus.BAD_REQUEST
+                        );
+                    }
+                }
+            }
         }
 
         // Tính tổng tiền từ món đã SERVED
@@ -260,8 +281,7 @@ public class PaymentRequestServiceImpl implements PaymentRequestService {
         }
         double serviceCharge = subtotal * 0.05;
         double taxAmount = subtotal * 0.08;
-        double finalAmount = subtotal + serviceCharge + taxAmount;
-        return BigDecimal.valueOf(finalAmount);
+        return BigDecimal.valueOf(subtotal + serviceCharge + taxAmount);
     }
 
     private PaymentRequestResponse toResponse(PaymentRequest pr) {

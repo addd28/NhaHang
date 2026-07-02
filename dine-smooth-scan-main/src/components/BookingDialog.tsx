@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, User, Phone, Users, CheckCircle2, Loader2 } from "lucide-react";
+import { Calendar, Clock, User, Phone, Users, CheckCircle2, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -162,6 +162,10 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
       toast.error("Vui lòng nhập Số điện thoại!");
       return;
     }
+    if (!reserveGuests || reserveGuests <= 0) {
+      toast.error("Vui lòng nhập số lượng khách hợp lệ!");
+      return;
+    }
     if (!reserveDate) {
       toast.error("Vui lòng chọn Ngày đặt bàn!");
       return;
@@ -206,32 +210,37 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
     <Dialog open={open} onOpenChange={(val) => {
       if (!val) handleClose();
     }}>
-      <DialogContent className="max-w-[640px] w-full bg-card text-foreground border border-border/30 p-0 overflow-hidden rounded-[24px] shadow-soft transition-all duration-300 font-sans">
+      <DialogContent className="max-w-[580px] w-[95vw] bg-card text-foreground border border-border/40 p-0 overflow-hidden rounded-[28px] shadow-soft transition-all duration-300 font-sans">
         {/* Custom Header Bar */}
-        <div className="bg-[#121212] text-white px-6 py-5 flex items-center gap-3 border-b border-white/5">
-          <Calendar className="h-6 w-6 text-primary animate-pulse" />
-          <DialogTitle className="font-display text-xl font-bold tracking-wide text-white uppercase">
-            Đặt bàn trực tuyến
-          </DialogTitle>
+        <div className="bg-[#121212] px-6 py-6 border-b border-border/40 relative">
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-primary" />
+          <div className="flex items-center gap-3">
+            <div className="bg-primary/10 p-2.5 rounded-2xl border border-primary/20">
+              <Calendar className="h-6 w-6 text-primary animate-pulse" />
+            </div>
+            <div className="text-left">
+              <DialogTitle className="font-display text-xl font-bold tracking-wide text-white uppercase">
+                Đặt Bàn Trực Tuyến
+              </DialogTitle>
+            </div>
+          </div>
         </div>
 
         {/* Main Body */}
-        <div className="p-6 md:p-8 max-h-[85vh] overflow-y-auto">
+        <div className="p-6 md:p-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
           {!bookingResult ? (
             /* ================= FORM VIEW ================= */
             <form onSubmit={handleBookingSubmit} className="space-y-6">
-              <DialogDescription className="text-sm text-muted-foreground leading-relaxed font-light font-sans">
-                Nhập thông tin bên dưới để hệ thống tự động tìm và giữ chỗ phù hợp.
-                <br />
-                Nếu hiện tại nhà hàng đã hết bàn, bạn sẽ được đưa vào <strong className="font-semibold text-primary">Danh sách chờ</strong> và hệ thống sẽ tự động xác nhận khi có bàn trống.
+              <DialogDescription className="sr-only">
+                Nhập thông tin chi tiết để tiến hành giữ chỗ tại nhà hàng.
               </DialogDescription>
 
               {/* Form Input Fields */}
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Họ và tên */}
                   <div className="space-y-1.5 text-left">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 font-sans">
                       <User className="h-3.5 w-3.5 text-primary" />
                       Họ và tên <span className="text-primary">*</span>
                     </label>
@@ -240,14 +249,14 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
                       required
                       value={reserveName}
                       onChange={(e) => setReserveName(e.target.value)}
-                      placeholder="Ví dụ: Nguyễn Văn A"
-                      className="w-full h-[52px] px-4 rounded-xl border border-border bg-background/50 text-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none text-sm transition-all placeholder:text-muted-foreground/60 font-sans"
+                      placeholder="Nguyễn Văn A"
+                      className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-black focus:border-primary focus:outline-none text-sm placeholder:text-gray-400 font-sans"
                     />
                   </div>
 
                   {/* Số điện thoại */}
                   <div className="space-y-1.5 text-left">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 font-sans">
                       <Phone className="h-3.5 w-3.5 text-primary" />
                       Số điện thoại <span className="text-primary">*</span>
                     </label>
@@ -257,34 +266,38 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
                       value={reservePhone}
                       onChange={(e) => setReservePhone(e.target.value)}
                       placeholder="Ví dụ: 0901234567"
-                      className="w-full h-[52px] px-4 rounded-xl border border-border bg-background/50 text-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none text-sm transition-all placeholder:text-muted-foreground/60 font-sans"
+                      className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-black focus:border-primary focus:outline-none text-sm placeholder:text-gray-400 font-sans"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Số khách */}
                   <div className="space-y-1.5 text-left">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 font-sans">
                       <Users className="h-3.5 w-3.5 text-primary" />
                       Số khách <span className="text-primary">*</span>
                     </label>
-                    <select
-                      value={reserveGuests}
-                      onChange={(e) => setReserveGuests(Number(e.target.value))}
-                      className="w-full h-[52px] px-4 rounded-xl border border-border bg-background/50 text-foreground focus:bg-card focus:border-primary focus:outline-none text-sm transition-all cursor-pointer font-sans"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20].map((n) => (
-                        <option key={n} value={n}>
-                          {n} người
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      required
+                      value={reserveGuests || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*$/.test(val)) {
+                          setReserveGuests(val ? Number(val) : 0);
+                        }
+                      }}
+                      placeholder="Nhập số khách"
+                      className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-black focus:border-primary focus:outline-none text-sm placeholder:text-gray-400 font-sans"
+                    />
                   </div>
 
                   {/* Ngày */}
                   <div className="space-y-1.5 text-left">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 font-sans">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
                       Ngày <span className="text-primary">*</span>
                     </label>
@@ -295,13 +308,13 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
                       value={reserveDate}
                       onChange={(e) => setReserveDate(e.target.value)}
                       onKeyDown={(e) => e.preventDefault()}
-                      className="w-full h-[52px] px-4 rounded-xl border border-border bg-background/50 text-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none text-sm transition-all cursor-pointer font-sans"
+                      className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-black focus:border-primary focus:outline-none text-sm cursor-pointer font-sans"
                     />
                   </div>
 
                   {/* Giờ */}
                   <div className="space-y-1.5 text-left">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 font-sans">
                       <Clock className="h-3.5 w-3.5 text-primary" />
                       Giờ <span className="text-primary">*</span>
                     </label>
@@ -309,7 +322,7 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
                       <select
                         value={reserveTime}
                         onChange={(e) => setReserveTime(e.target.value)}
-                        className="w-full h-[52px] px-4 rounded-xl border border-border bg-background/50 text-foreground focus:bg-card focus:border-primary focus:outline-none text-sm transition-all cursor-pointer font-sans"
+                        className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-black focus:border-primary focus:outline-none text-sm cursor-pointer font-sans"
                       >
                         {availableSlots.map((slot) => (
                           <option key={slot} value={slot}>
@@ -318,8 +331,8 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
                         ))}
                       </select>
                     ) : (
-                      <div className="w-full h-[52px] px-3 rounded-xl border border-amber-200 bg-amber-500/10 text-amber-500 text-[11px] leading-tight flex items-center font-sans">
-                        Hết khung giờ khả dụng cho hôm nay.
+                      <div className="w-full h-12 px-3 rounded-xl border border-amber-200 bg-amber-500/10 text-amber-500 text-[10px] leading-tight flex items-center font-sans">
+                        Hết khung giờ hôm nay.
                       </div>
                     )}
                   </div>
@@ -327,32 +340,38 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
 
                 {/* Occupancy Warning Banner */}
                 {occupancy && (
-                  <div className={`p-4 rounded-xl text-xs font-medium font-sans flex flex-col gap-1 text-left border ${occupancy.status === "PLENTY"
+                  <div className={`p-4 rounded-2xl text-xs font-sans flex flex-col gap-1 text-left border ${occupancy.status === "PLENTY"
                       ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
                       : occupancy.status === "NEAR_FULL"
                         ? "bg-amber-500/10 border-amber-500/20 text-amber-500"
                         : "bg-rose-500/10 border-rose-500/20 text-rose-500"
                     }`}>
-                    <span className="font-bold flex items-center gap-1">
-                      {occupancy.status === "PLENTY" && "🟢 Còn nhiều chỗ"}
-                      {occupancy.status === "NEAR_FULL" && "🟡 Khung giờ gần kín"}
-                      {occupancy.status === "CROWDED" && "🔴 Khung giờ đã rất đông"}
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${occupancy.status === "PLENTY"
+                          ? "bg-emerald-500 animate-pulse"
+                          : occupancy.status === "NEAR_FULL"
+                            ? "bg-amber-500 animate-pulse"
+                            : "bg-rose-500 animate-pulse"
+                        }`} />
+                      {occupancy.status === "PLENTY" && "Còn nhiều chỗ trống"}
+                      {occupancy.status === "NEAR_FULL" && "Khung giờ gần kín"}
+                      {occupancy.status === "CROWDED" && "Khung giờ đã rất đông"}
                     </span>
-                    <span className="font-light opacity-90">{occupancy.message}</span>
+                    <span className="font-light opacity-90 leading-relaxed">{occupancy.message}</span>
                   </div>
                 )}
 
                 {/* Ghi chú */}
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">
                     Ghi chú thêm
                   </label>
                   <textarea
                     rows={2}
                     value={reserveNote}
                     onChange={(e) => setReserveNote(e.target.value)}
-                    placeholder="Ví dụ:&#10;Sinh nhật&#10;Họp nhóm&#10;Có trẻ em&#10;..."
-                    className="w-full p-4 rounded-xl border border-border bg-background/50 text-foreground focus:bg-card focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none text-sm transition-all resize-none placeholder:text-muted-foreground/60 min-h-[90px] font-sans"
+                    placeholder="Ví dụ: Đặt bàn gần cửa sổ, tổ chức sinh nhật, có trẻ em..."
+                    className="w-full p-4 rounded-xl border border-gray-200 bg-white text-black focus:border-primary focus:outline-none text-sm resize-none placeholder:text-gray-400 min-h-[90px] font-sans"
                   />
                 </div>
               </div>
@@ -363,7 +382,7 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
                   type="button"
                   variant="outline"
                   onClick={handleClose}
-                  className="w-full sm:flex-1 h-[52px] rounded-xl border-border bg-muted/20 hover:bg-muted/40 text-foreground font-bold transition-all text-sm cursor-pointer"
+                  className="w-full sm:flex-1 h-12 rounded-full border-border bg-accent/20 hover:bg-accent/40 text-foreground font-bold transition-all text-xs uppercase tracking-widest cursor-pointer"
                 >
                   Hủy bỏ
                 </Button>
@@ -371,18 +390,15 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
                 <Button
                   type="submit"
                   disabled={reserveMutation.isPending || availableSlots.length === 0}
-                  className="w-full sm:flex-1 h-[52px] rounded-xl bg-primary hover:bg-primary-glow text-primary-foreground font-bold shadow-elegant hover:scale-[1.02] transition-all text-sm cursor-pointer flex items-center justify-center gap-2 border-none"
+                  className="w-full sm:flex-1 h-12 rounded-full bg-gradient-primary hover:opacity-95 text-primary-foreground font-bold shadow-elegant hover:scale-[1.02] transition-all text-xs uppercase tracking-widest cursor-pointer flex items-center justify-center gap-2 border-none"
                 >
                   {reserveMutation.isPending ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
-                      <div className="text-left text-[11px] leading-tight">
-                        <p className="font-bold">Đang tìm bàn phù hợp...</p>
-                        <p className="font-light opacity-90">Vui lòng chờ trong giây lát...</p>
-                      </div>
+                      <span>Đang giữ chỗ...</span>
                     </div>
                   ) : (
-                    "Đặt bàn ngay"
+                    "Xác Nhận Đặt Bàn"
                   )}
                 </Button>
               </div>
@@ -392,75 +408,78 @@ export function BookingDialog({ open, onOpenChange }: BookingDialogProps) {
             <div className="text-center py-4 space-y-6 animate-fade-up font-sans">
               {/* Animated Success Icon */}
               <div className="flex justify-center">
-                <div className="bg-emerald-500/10 p-4 rounded-full text-emerald-500 animate-bounce">
-                  <CheckCircle2 className="h-16 w-16" />
+                <div className="bg-emerald-500/10 p-5 rounded-full text-emerald-500 border border-emerald-500/20 relative animate-pulse">
+                  <CheckCircle2 className="h-14 w-14" />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <h3 className="font-display text-2xl font-bold text-foreground">
-                  Đặt bàn thành công
+                  Đặt Bàn Thành Công!
                 </h3>
-                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  🟢 BOOKED
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  Đã xác nhận (Booked)
                 </div>
               </div>
 
-              {/* Bold Reservation Code Card */}
-              <div className="bg-muted/30 border border-dashed border-border rounded-2xl p-5 max-w-sm mx-auto shadow-sm">
-                <p className="text-[10px] tracking-widest text-muted-foreground font-bold uppercase">
-                  Mã đặt bàn
+              {/* Bold Reservation Code Ticket */}
+              <div className="bg-primary/5 border border-dashed border-primary/20 rounded-2xl p-5 max-w-sm mx-auto shadow-inner relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-2 h-full bg-gradient-primary" />
+                <p className="text-[10px] tracking-[0.2em] text-muted-foreground font-bold uppercase">
+                  Mã Đặt Bàn của bạn
                 </p>
-                <p className="text-3xl font-mono font-black text-primary tracking-wider my-2.5">
+                <p className="text-3xl font-mono font-black text-primary tracking-wider my-3">
                   {bookingResult.reservationCode || "N/A"}
                 </p>
                 <p className="text-[11px] text-muted-foreground leading-normal font-light">
-                  Vui lòng cung cấp mã này cho nhân viên khi đến nhà hàng.
+                  Vui lòng xuất trình mã này cho nhân viên lễ tân khi đến nhà hàng.
                 </p>
               </div>
 
-              {/* Details List */}
-              <div className="border border-border/60 rounded-xl divide-y divide-border/60 max-w-md mx-auto text-sm text-left">
-                <div className="grid grid-cols-3 p-3">
-                  <span className="text-muted-foreground font-medium">Khách hàng:</span>
+              {/* Details List Card */}
+              <div className="border border-border/40 bg-accent/10 rounded-2xl divide-y divide-border/20 max-w-md mx-auto text-xs text-left shadow-soft">
+                <div className="grid grid-cols-3 p-3.5">
+                  <span className="text-muted-foreground">Khách hàng:</span>
                   <span className="col-span-2 text-foreground font-bold text-right">{bookingResult.customerName || reserveName}</span>
                 </div>
-                <div className="grid grid-cols-3 p-3">
-                  <span className="text-muted-foreground font-medium">Số điện thoại:</span>
+                <div className="grid grid-cols-3 p-3.5">
+                  <span className="text-muted-foreground">Số điện thoại:</span>
                   <span className="col-span-2 text-foreground font-semibold text-right">{reservePhone}</span>
                 </div>
-                <div className="grid grid-cols-3 p-3">
-                  <span className="text-muted-foreground font-medium">Ngày đặt bàn:</span>
+                <div className="grid grid-cols-3 p-3.5">
+                  <span className="text-muted-foreground">Ngày đặt:</span>
                   <span className="col-span-2 text-foreground font-semibold text-right">
-                    {reserveDate ? new Date(reserveDate).toLocaleDateString("vi-VN") : "--"}
+                    {reserveDate ? new Date(reserveDate).toLocaleDateString("vi-VN", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : "--"}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 p-3">
-                  <span className="text-muted-foreground font-medium">Giờ đặt bàn:</span>
-                  <span className="col-span-2 text-foreground font-semibold text-right">{reserveTime}</span>
+                <div className="grid grid-cols-3 p-3.5">
+                  <span className="text-muted-foreground">Khung giờ:</span>
+                  <span className="col-span-2 text-foreground font-bold text-right text-primary">{reserveTime}</span>
                 </div>
-                <div className="grid grid-cols-3 p-3">
-                  <span className="text-muted-foreground font-medium">Số khách:</span>
+                <div className="grid grid-cols-3 p-3.5">
+                  <span className="text-muted-foreground">Số lượng khách:</span>
                   <span className="col-span-2 text-primary font-bold text-right">{bookingResult.guestCount || reserveGuests} người</span>
                 </div>
               </div>
 
-              {/* Info text */}
-              <div className="max-w-md mx-auto bg-primary/5 border border-primary/10 p-4 rounded-xl text-left text-xs text-muted-foreground space-y-1 leading-relaxed">
-                <p className="font-bold flex items-center gap-1.5 text-primary">
-                  💡 Lưu ý về giữ chỗ:
-                </p>
-                <p className="font-light">
-                  Vui lòng đến đúng giờ.
-                </p>
+              {/* Info alert card */}
+              <div className="max-w-md mx-auto bg-warning/5 border border-warning/20 p-4 rounded-2xl text-left text-[11px] text-warning flex gap-2.5 items-start leading-relaxed font-sans">
+                <Info className="h-4 w-4 shrink-0 mt-0.5 text-warning" />
+                <div>
+                  <p className="font-bold mb-0.5">💡 Lưu ý quan trọng:</p>
+                  <p className="font-light opacity-90">
+                    Bàn đặt của quý khách sẽ được hỗ trợ giữ chỗ tối đa trong vòng 10 phút so với giờ hẹn. Nếu quá thời gian trên, hệ thống sẽ tự động hủy lịch để nhường chỗ cho khách hàng tiếp theo.
+                  </p>
+                </div>
               </div>
 
               <div className="pt-2">
                 <Button
                   onClick={handleClose}
-                  className="w-full max-w-xs h-[52px] rounded-xl bg-primary hover:bg-primary-glow text-primary-foreground font-bold transition-all text-sm cursor-pointer shadow-elegant border-none"
+                  className="w-full max-w-xs h-12 rounded-full bg-gradient-primary hover:opacity-95 text-primary-foreground font-bold transition-all text-xs uppercase tracking-widest cursor-pointer shadow-elegant border-none"
                 >
-                  Đóng
+                  Hoàn tất
                 </Button>
               </div>
             </div>

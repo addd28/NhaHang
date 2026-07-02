@@ -78,6 +78,11 @@ public class PaymentController {
                     "message", "Yêu cầu thanh toán đã được gửi. Vui lòng chờ thu ngân xác nhận.",
                     "requestId", response.getId()
             ));
+        } catch (com.qrorder.exception.BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of(
+                    "error", e.getErrorCode(),
+                    "message", e.getMessage()
+            ));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
@@ -92,6 +97,11 @@ public class PaymentController {
             PaymentMethod method = PaymentMethod.valueOf(paymentMethod.toUpperCase());
             PaymentRequestResponse response = paymentRequestService.createRequest(sessionId, method, false);
             return ResponseEntity.ok(response);
+        } catch (com.qrorder.exception.BusinessException e) {
+            return ResponseEntity.status(e.getStatus()).body(Map.of(
+                    "error", e.getErrorCode(),
+                    "message", e.getMessage()
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

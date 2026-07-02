@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
-import { CreditCard, Banknote, History, Clock, CheckCircle2, QrCode, Wallet, AlertCircle, Search, Calendar, Filter, RotateCcw, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "../../hooks/useAuth";
 import AdminLayout from "../../components/AdminLayout";
-import { paymentApi, PaymentRequestItem } from "../../api/paymentApi";
+import { paymentApi } from "../../api/paymentApi";
 import { orderApi } from "../../api/orderApi";
-import { cn } from "@/lib/utils";
 
 const formatPrice = (val?: number | null) => {
-  if (val === null || val === undefined) return "0 đ";
-  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+  if (val === null || val === undefined) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(val);
 };
 
 // Component to handle truncation & expansion of ordered items in payment history
@@ -69,7 +72,6 @@ function AdminPayments() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<"requests" | "active">("requests");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -89,13 +91,6 @@ function AdminPayments() {
     }
   }, [user, isAuthenticated]);
 
-  const { data: openSessions = [], isLoading: openLoading } = useQuery({
-    queryKey: ["cashierSessions"],
-    queryFn: paymentApi.getCashierSessions,
-    refetchInterval: 5000,
-    enabled: isAuthenticated && (user?.role === "ADMIN" || user?.role === "CASHIER") && tab === "active",
-  });
-
   const { data: pendingRequests = [], isLoading: requestsLoading } = useQuery({
     queryKey: ["pendingPaymentRequests"],
     queryFn: paymentApi.getPendingPaymentRequests,
@@ -109,20 +104,6 @@ function AdminPayments() {
     enabled: !!selectedRequest,
   });
 
-  const payMutation = useMutation({
-    mutationFn: async ({ sessionId, paymentMethod }: { sessionId: number; paymentMethod: string }) => {
-      return paymentApi.payment(sessionId, paymentMethod);
-    },
-    onSuccess: () => {
-      toast.success("Thanh toán hóa đơn và giải phóng bàn thành công!");
-      queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
-    },
-    onError: (err: any) => {
-      const errMsg = err.response?.data?.message || err.message || "Thanh toán thất bại!";
-      toast.error(errMsg);
-    }
-  });
-
   const confirmRequestMutation = useMutation({
     mutationFn: async (id: number) => {
       return paymentApi.confirmPaymentRequest(id);
@@ -130,7 +111,6 @@ function AdminPayments() {
     onSuccess: () => {
       toast.success("✅ Xác nhận thành công! Bàn đã được giải phóng.");
       queryClient.invalidateQueries({ queryKey: ["pendingPaymentRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
       setShowConfirmModal(false);
       setShowDetailDialog(false);
       setSelectedRequest(null);
@@ -147,26 +127,11 @@ function AdminPayments() {
     onSuccess: () => {
       toast.success("❌ Đã hủy/từ chối yêu cầu thanh toán.");
       queryClient.invalidateQueries({ queryKey: ["pendingPaymentRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
       setShowDetailDialog(false);
       setSelectedRequest(null);
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || "Hủy yêu cầu thất bại!");
-    }
-  });
-
-  const closeSessionMutation = useMutation({
-    mutationFn: async (sessionId: number) => {
-      return paymentApi.closeSession(sessionId);
-    },
-    onSuccess: () => {
-      toast.success("Đóng phiên và giải phóng bàn thành công!");
-      queryClient.invalidateQueries({ queryKey: ["cashierSessions"] });
-    },
-    onError: (err: any) => {
-      const errMsg = err.response?.data?.message || err.message || "Đóng phiên thất bại!";
-      toast.error(errMsg);
     }
   });
 
@@ -177,117 +142,72 @@ function AdminPayments() {
   return (
     <AdminLayout title="Hóa đơn & Thanh toán (Cashier POS)">
       <div className="p-6 space-y-6">
-        <div className="flex border-b border-border">
-          <button
-            onClick={() => setTab("requests")}
-            className={`relative px-4 py-2 border-b-2 font-semibold text-sm transition-colors cursor-pointer ${tab === "requests" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-          >
-            Yêu cầu thanh toán
-            {pendingRequests.length > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-extrabold px-1 animate-pulse">
-                {pendingRequests.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("active")}
-            className={`px-4 py-2 border-b-2 font-semibold text-sm transition-colors cursor-pointer ${tab === "active" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-          >
-            <span className="flex items-center gap-1"><CreditCard className="h-4 w-4" /> Thanh toán tại bàn</span>
-          </button>
-        </div>
-
-        {tab === "requests" ? (
-          requestsLoading ? (
-            <div className="py-20 text-center text-sm text-muted-foreground animate-pulse">Đang tải...</div>
-          ) : pendingRequests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center bg-card border border-border rounded-3xl space-y-3 shadow-soft">
-              <CheckCircle2 className="h-10 w-10 text-success" />
-              <p className="font-semibold text-lg">Không có yêu cầu đang chờ!</p>
-              <p className="text-sm text-muted-foreground">Khi khách gửi yêu cầu thanh toán, thông tin sẽ hiển thị tại đây.</p>
-            </div>
-          ) : (
-            <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-soft text-left">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-border bg-accent/25 font-semibold text-muted-foreground">
-                      <th className="p-4 text-left">Bàn</th>
-                      <th className="p-4 text-left">Tổng tiền</th>
-                      <th className="p-4 text-left">Mã GD</th>
-                      <th className="p-4 text-left">Thời gian</th>
-                      <th className="p-4 text-left">Trạng thái</th>
-                      <th className="p-4 text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingRequests.map((req) => (
-                      <tr key={req.id} className="border-b border-border hover:bg-accent/10 transition-colors">
-                        <td className="p-4 font-bold text-sm">Bàn {req.tableNumber}</td>
-                        <td className="p-4 font-bold text-success text-sm font-display">
-                          {formatPrice(req.amount)}
-                        </td>
-                        <td className="p-4 font-mono font-bold text-primary">{req.transactionCode || `TXN-${req.id}`}</td>
-                        <td className="p-4 text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            {req.requestedAt ? new Date(req.requestedAt).toLocaleTimeString("vi-VN") : "Just now"}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-warning/10 text-warning border border-warning/20">
-                            {req.paymentStatus || req.status}
-                          </Badge>
-                        </td>
-                        <td className="p-4 text-right">
-                          <Button 
-                            onClick={() => handleViewRequest(req)}
-                            variant="outline"
-                            className="h-8 text-[11px] font-bold rounded-lg px-3 cursor-pointer hover:bg-accent text-primary"
-                          >
-                            Xem
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )
+        {requestsLoading ? (
+          <div className="py-20 text-center text-sm text-muted-foreground animate-pulse">Đang tải...</div>
+        ) : pendingRequests.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center bg-card border border-border rounded-3xl space-y-3 shadow-soft">
+            <CheckCircle2 className="h-10 w-10 text-success" />
+            <p className="font-semibold text-lg">Không có yêu cầu đang chờ!</p>
+            <p className="text-sm text-muted-foreground">Khi khách gửi yêu cầu thanh toán, thông tin sẽ hiển thị tại đây.</p>
+          </div>
         ) : (
-          openLoading ? (
-            <div className="py-20 text-center text-sm text-muted-foreground animate-pulse">Đang tải...</div>
-          ) : openSessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center bg-card border border-border rounded-3xl space-y-3 shadow-soft">
-              <CheckCircle2 className="h-10 w-10 text-success" />
-              <p className="font-semibold text-lg">Không có bàn nào đang hoạt động!</p>
-              <p className="text-sm text-muted-foreground">Tất cả các bàn đều trống hoặc đã hoàn tất thanh toán.</p>
+          <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-soft text-left">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-accent/25 font-semibold text-muted-foreground">
+                    <th className="p-4 text-left">Bàn</th>
+                    <th className="p-4 text-left">Tổng tiền</th>
+                    <th className="p-4 text-left">Mã GD</th>
+                    <th className="p-4 text-left">Thời gian</th>
+                    <th className="p-4 text-left">Trạng thái</th>
+                    <th className="p-4 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRequests.map((req) => (
+                    <tr key={req.id} className="border-b border-border hover:bg-accent/10 transition-colors">
+                      <td className="p-4 font-bold text-sm">Bàn {req.tableNumber}</td>
+                      <td className="p-4 font-bold text-success text-sm font-display">
+                        {formatPrice(req.amount)}
+                      </td>
+                      <td className="p-4 font-mono font-bold text-primary">{req.transactionCode || `TXN-${req.id}`}</td>
+                      <td className="p-4 text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {req.requestedAt ? new Date(req.requestedAt).toLocaleTimeString("vi-VN") : "Just now"}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-warning/10 text-warning border border-warning/20">
+                          {req.paymentStatus || req.status}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-right">
+                        <Button 
+                          onClick={() => handleViewRequest(req)}
+                          variant="outline"
+                          className="h-8 text-[11px] font-bold rounded-lg px-3 cursor-pointer hover:bg-accent text-primary"
+                        >
+                          Xem
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {openSessions.map((session: any) => (
-                <SessionCard
-                  key={session.sessionId}
-                  session={session}
-                  onPay={(sessionId, paymentMethod) => payMutation.mutate({ sessionId, paymentMethod })}
-                  isPaying={payMutation.isPending}
-                  onCloseSession={(sessionId) => closeSessionMutation.mutate(sessionId)}
-                  isClosing={closeSessionMutation.isPending}
-                />
-              ))}
-            </div>
-          )
+          </div>
         )}
       </div>
 
       {/* Pending Request Detail Dialog */}
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
         {selectedRequest && (
-          <DialogContent className="max-w-md bg-card border border-border p-6 rounded-3xl text-left text-foreground">
-            <DialogTitle className="font-display text-xl font-bold flex items-center justify-between border-b border-border/60 pb-3">
+          <DialogContent className="max-w-[360px] bg-card border border-border p-4 rounded-3xl text-left text-foreground">
+            <DialogTitle className="font-display text-base font-bold flex items-center justify-between border-b border-border/60 pb-2">
               <span>Yêu cầu thanh toán Bàn {selectedRequest.tableNumber}</span>
-              <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-warning/10 text-warning border border-warning/20">
+              <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-warning/10 text-warning border border-warning/20">
                 PENDING
               </Badge>
             </DialogTitle>
@@ -295,64 +215,64 @@ function AdminPayments() {
               Chi tiết yêu cầu thanh toán chuyển khoản từ khách hàng.
             </DialogDescription>
 
-            <div className="space-y-4 mt-4">
+            <div className="space-y-3 mt-3">
               {/* VietQR code if method is QR */}
               {selectedRequest.paymentMethod === "QR" && (
-                <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-gray-100 shadow-soft">
+                <div className="flex flex-col items-center justify-center p-3 bg-white rounded-2xl border border-gray-100 shadow-soft">
                   {selectedRequest.qrUrl ? (
                     <img 
                       src={selectedRequest.qrUrl} 
                       alt="VietQR code" 
-                      className="w-44 h-44 object-contain"
+                      className="w-32 h-32 object-contain"
                     />
                   ) : (
-                    <div className="w-44 h-44 bg-accent/20 rounded-xl flex items-center justify-center text-xs text-muted-foreground animate-pulse">
+                    <div className="w-32 h-32 bg-accent/20 rounded-xl flex items-center justify-center text-[10px] text-muted-foreground animate-pulse">
                       Đang tạo QR...
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground mt-2 font-mono">
-                    Nội dung chuyển khoản: <span className="font-bold text-primary">{selectedRequest.transferContent || selectedRequest.transactionCode}</span>
+                  <p className="text-[9px] text-muted-foreground mt-1.5 font-mono">
+                    Nội dung CK: <span className="font-bold text-primary">{selectedRequest.transferContent || selectedRequest.transactionCode}</span>
                   </p>
                 </div>
               )}
 
               {/* Request Info */}
-              <div className="bg-accent/10 border border-border/40 rounded-2xl p-4 space-y-2.5 text-xs">
+              <div className="bg-accent/10 border border-border/40 rounded-2xl p-3 space-y-2 text-xs">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Mã giao dịch:</span>
                   <span className="font-mono font-bold text-primary">{selectedRequest.transactionCode || `TXN-${selectedRequest.id}`}</span>
                 </div>
-                <div className="flex justify-between items-center border-t border-border/10 pt-2">
+                <div className="flex justify-between items-center border-t border-border/10 pt-1.5">
                   <span className="text-muted-foreground">Phương thức:</span>
                   <span className="font-bold">{selectedRequest.paymentMethod === "QR" ? "VietQR (Chuyển khoản)" : selectedRequest.paymentMethod === "CASH" ? "Tiền mặt" : selectedRequest.paymentMethod}</span>
                 </div>
-                <div className="flex justify-between items-center border-t border-border/10 pt-2">
+                <div className="flex justify-between items-center border-t border-border/10 pt-1.5">
                   <span className="text-muted-foreground">Tổng tiền:</span>
                   <span className="font-display font-bold text-success text-sm">
                     {formatPrice(selectedRequest.amount)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center border-t border-border/10 pt-2">
+                <div className="flex justify-between items-center border-t border-border/10 pt-1.5">
                   <span className="text-muted-foreground">Thời gian gửi:</span>
                   <span>{selectedRequest.requestedAt ? new Date(selectedRequest.requestedAt).toLocaleString("vi-VN") : "—"}</span>
                 </div>
               </div>
 
               {/* Order Items */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Danh sách món đã gọi:</p>
-                <div className="border border-border/60 rounded-2xl overflow-hidden max-h-[160px] overflow-y-auto space-y-1.5 p-3 bg-accent/5">
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Danh sách món đã gọi:</p>
+                <div className="border border-border/60 rounded-2xl overflow-hidden max-h-[120px] overflow-y-auto space-y-1 p-2.5 bg-accent/5">
                   {itemsLoading ? (
-                    <p className="text-xs text-muted-foreground animate-pulse text-center py-4">Đang tải món ăn...</p>
+                    <p className="text-xs text-muted-foreground animate-pulse text-center py-2">Đang tải món ăn...</p>
                   ) : requestItems.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-4">Chưa có món ăn nào</p>
+                    <p className="text-xs text-muted-foreground italic text-center py-2">Chưa có món ăn nào</p>
                   ) : (
                     requestItems.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-start text-xs border-b border-border/30 last:border-b-0 pb-1.5 last:pb-0">
+                      <div key={idx} className="flex justify-between items-start text-xs border-b border-border/30 last:border-b-0 pb-1 last:pb-0">
                         <div className="flex-1 truncate pr-2">
                           <p className="font-bold truncate">{item.menuItemName}</p>
                           {item.options && item.options.length > 0 && (
-                            <p className="text-[10px] text-muted-foreground pl-1.5 mt-0.5">+ {item.options.join(", ")}</p>
+                            <p className="text-[9px] text-muted-foreground pl-1.5 mt-0.5">+ {item.options.join(", ")}</p>
                           )}
                         </div>
                         <span className="font-semibold text-muted-foreground shrink-0">x{item.quantity}</span>
@@ -363,19 +283,19 @@ function AdminPayments() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2.5 pt-1.5">
                 <Button
                   onClick={() => cancelRequestMutation.mutate(selectedRequest.id)}
                   disabled={cancelRequestMutation.isPending || confirmRequestMutation.isPending}
                   variant="outline"
-                  className="flex-1 h-11 rounded-full border-border bg-accent/20 text-destructive font-bold hover:bg-destructive/10 cursor-pointer text-xs animate-button"
+                  className="flex-1 h-9 rounded-full border-border bg-accent/20 text-destructive font-bold hover:bg-destructive/10 cursor-pointer text-xs animate-button"
                 >
                   {cancelRequestMutation.isPending ? "Đang hủy..." : "Hủy yêu cầu"}
                 </Button>
                 <Button
                   onClick={() => setShowConfirmModal(true)}
                   disabled={confirmRequestMutation.isPending}
-                  className="flex-1 h-11 rounded-full bg-success text-success-foreground font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs"
+                  className="flex-1 h-9 rounded-full bg-success text-success-foreground font-bold shadow-elegant hover:opacity-95 cursor-pointer text-xs"
                 >
                   Đã nhận tiền
                 </Button>

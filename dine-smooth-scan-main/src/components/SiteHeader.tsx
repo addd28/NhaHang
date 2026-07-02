@@ -41,7 +41,7 @@ export function SiteHeader() {
                 CHILL CLUB
               </span>
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">
-                Premium Restaurant
+                Bia Hơi Ngon · Est. 2024
               </span>
             </div>
           </Link>

@@ -16,8 +16,12 @@ import AdminLayout from "../../components/AdminLayout";
 import { paymentApi } from "../../api/paymentApi";
 
 const formatPrice = (val?: number | null) => {
-  if (val === null || val === undefined) return "0 đ";
-  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+  if (val === null || val === undefined) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(val);
 };
 
 export const Route = createFileRoute("/admin/payments-history")({

@@ -23,8 +23,12 @@ import {
 } from "recharts";
 
 const formatPrice = (val?: number | null) => {
-  if (val === null || val === undefined) return "0 đ";
-  return new Intl.NumberFormat("vi-VN").format(Math.round(val * 25000)) + " đ";
+  if (val === null || val === undefined) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(val);
 };
 
 const PIE_COLORS = ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B"];
@@ -79,7 +83,7 @@ function AdminDashboard() {
       if (!d) return d;
       return {
         ...d,
-        todayRevenue: d.todayRevenue * 25000,
+        todayRevenue: d.todayRevenue,
       };
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -103,8 +107,8 @@ function AdminDashboard() {
       if (!d) return d;
       return {
         ...d,
-        totalRevenue: d.totalRevenue * 25000,
-        aov: d.aov * 25000,
+        totalRevenue: d.totalRevenue,
+        aov: d.aov,
       };
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -118,7 +122,7 @@ function AdminDashboard() {
       if (!res.data) return [];
       return res.data.map((d: any) => ({
         ...d,
-        revenue: d.revenue * 25000,
+        revenue: d.revenue,
       }));
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -143,8 +147,8 @@ function AdminDashboard() {
       if (!d) return d;
       return {
         ...d,
-        currentRevenue: d.currentRevenue * 25000,
-        previousRevenue: d.previousRevenue * 25000,
+        currentRevenue: d.currentRevenue,
+        previousRevenue: d.previousRevenue,
       };
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -158,7 +162,7 @@ function AdminDashboard() {
       if (!res.data) return [];
       return res.data.map((d: any) => ({
         ...d,
-        revenue: d.revenue * 25000,
+        revenue: d.revenue,
       }));
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -173,7 +177,7 @@ function AdminDashboard() {
       if (!d) return d;
       return {
         ...d,
-        amount: d.amount * 25000,
+        amount: d.amount,
       };
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -188,7 +192,7 @@ function AdminDashboard() {
       if (!d) return d;
       return {
         ...d,
-        amount: d.amount * 25000,
+        amount: d.amount,
       };
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -203,8 +207,8 @@ function AdminDashboard() {
       if (!d) return d;
       return {
         ...d,
-        currentRevenue: d.currentRevenue * 25000,
-        previousRevenue: d.previousRevenue * 25000,
+        currentRevenue: d.currentRevenue,
+        previousRevenue: d.previousRevenue,
       };
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -228,7 +232,7 @@ function AdminDashboard() {
       if (!res.data) return [];
       return res.data.map((d: any) => ({
         ...d,
-        revenue: d.revenue * 25000,
+        revenue: d.revenue,
       }));
     },
     enabled: isAuthenticated && user?.role === "ADMIN",
@@ -242,7 +246,7 @@ function AdminDashboard() {
       if (!res.data) return [];
       return res.data.map((p: any) => ({
         ...p,
-        amount: p.amount * 25000,
+        amount: p.amount,
       }));
     },
     enabled: isAuthenticated && user?.role === "ADMIN",

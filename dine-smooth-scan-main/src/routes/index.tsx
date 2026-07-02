@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import heroBg from "../assets/hero_background.png";
 import {
   Calendar,
   UtensilsCrossed,
@@ -21,6 +22,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { SiteLayout } from "@/components/SiteLayout";
 import { BookingDialog } from "@/components/BookingDialog";
 import { menuApi } from "@/api/menuApi";
+import { categoryApi } from "@/api/categoryApi";
 import { articleApi } from "@/api/articleApi";
 import { reviewApi } from "@/api/reviewApi";
 import { MenuItem, Article, Review } from "../types";
@@ -35,11 +37,18 @@ function EntrancePortal() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [reviewIndex, setReviewIndex] = useState(0);
+  const [activeCategory, setActiveCategory] = useState<string>("all");
 
   // 1. Fetch menu items
   const { data: menuItems = [], isLoading: menuLoading } = useQuery({
     queryKey: ["featuredMenuItems"],
     queryFn: () => menuApi.getMenuItems(),
+  });
+
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ["menuCategories"],
+    queryFn: () => categoryApi.getCategories(),
   });
 
   // 2. Fetch promotions
@@ -56,8 +65,15 @@ function EntrancePortal() {
 
   // Filter 6 featured items
   const featuredItems = useMemo(() => {
-    return menuItems.filter((item) => item.available).slice(0, 6);
-  }, [menuItems]);
+    const available = menuItems.filter((item) => item.available);
+    if (activeCategory === "all") return available.slice(0, 6);
+    return available.filter(
+      (item) => {
+        const catName = item.categoryName || item.category;
+        return catName && catName.toLowerCase() === activeCategory.toLowerCase();
+      }
+    ).slice(0, 6);
+  }, [menuItems, activeCategory]);
 
   // Review navigation
   const handlePrevReview = () => {
@@ -93,41 +109,47 @@ function EntrancePortal() {
       <section className="relative h-screen min-h-[650px] flex items-center overflow-hidden bg-[#121212]">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=1600"
+            src={heroBg}
             alt="Chill Club space"
-            className="w-full h-full object-cover opacity-45 animate-zoom-in"
+            className="w-full h-full object-cover opacity-50 animate-zoom-in"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/60 to-transparent" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-left space-y-6">
-          <span className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 px-4.5 py-1.5 rounded-full text-xs font-bold text-secondary uppercase tracking-[0.2em] animate-fade-up">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-left space-y-5 animate-fade-up">
+          <span className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 px-4 py-1.5 rounded-full text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">
             <Sparkles className="h-3.5 w-3.5" />
             CHILL CLUB RESTAURANT
           </span>
-          
-          <h1 className="font-display text-5xl md:text-7xl lg:text-8xl text-foreground max-w-4xl leading-[1.1] animate-fade-up">
-            Không chỉ là <span className="italic text-secondary">một bữa ăn</span>. <br />
+
+          <h1 
+            className="font-display text-3xl md:text-4xl lg:text-5xl text-white leading-[1.25] font-black max-w-3xl whitespace-nowrap"
+            style={{ textShadow: "0 2px 12px rgba(0, 0, 0, 0.95), 0 4px 35px rgba(0, 0, 0, 0.7)" }}
+          >
+            Không chỉ là <span className="italic text-secondary">một bữa ăn</span>.<br />
             Đó là <span className="italic text-secondary">trải nghiệm</span>.
           </h1>
 
-          <p className="mt-6 text-sm sm:text-base text-foreground/80 max-w-2xl font-sans font-light leading-relaxed animate-fade-up">
-            Định nghĩa lại nghệ thuật ẩm thực tinh tế kết hợp công nghệ gọi món QR thông minh. 
+          <p 
+            className="text-xs sm:text-sm text-foreground/90 max-w-xl font-sans font-light leading-relaxed"
+            style={{ textShadow: "0 2px 8px rgba(0, 0, 0, 0.95)" }}
+          >
+            Định nghĩa lại nghệ thuật ẩm thực tinh tế kết hợp công nghệ gọi món QR thông minh.
             Không gian sang trọng, dịch vụ tận tâm và những món ăn thượng hạng đang chờ đón bạn.
           </p>
 
-          <div className="pt-6 flex flex-wrap gap-4 animate-fade-up">
+          <div className="pt-2 flex flex-wrap gap-4">
             <Button
               onClick={() => setBookingOpen(true)}
-              className="gold-shimmer px-8 py-6 rounded-full bg-primary hover:bg-primary-glow text-primary-foreground font-bold shadow-elegant hover:scale-102 transition-all text-xs uppercase tracking-widest cursor-pointer"
+              className="gold-shimmer px-8 py-5 rounded-full bg-primary hover:bg-primary-glow text-primary-foreground font-bold shadow-elegant hover:scale-102 transition-all text-[11px] uppercase tracking-widest cursor-pointer"
             >
               Đặt bàn giữ chỗ
             </Button>
             <Link to="/menu">
               <Button
                 variant="outline"
-                className="px-8 py-6 rounded-full border-border bg-card/25 text-foreground hover:bg-accent/10 hover:scale-102 transition-all font-bold text-xs uppercase tracking-widest cursor-pointer"
+                className="px-8 py-5 rounded-full border-border bg-card/25 text-foreground hover:bg-accent/10 hover:scale-102 transition-all font-bold text-[11px] uppercase tracking-widest cursor-pointer"
               >
                 Khám phá thực đơn
               </Button>
@@ -137,7 +159,7 @@ function EntrancePortal() {
 
         {/* Scroll indicator */}
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 text-muted-foreground/60 text-[10px] uppercase tracking-[0.4em] flex flex-col items-center gap-3">
-          <span className="font-sans font-medium">Cuộn màn hình</span>
+          <span className="font-sans font-medium"></span>
           <span className="block w-px h-10 bg-primary animate-pulse" />
         </div>
       </section>
@@ -159,6 +181,35 @@ function EntrancePortal() {
           >
             Xem thực đơn đầy đủ →
           </Link>
+        </div>
+
+        {/* Category Navigation Tabs */}
+        <div className="flex flex-wrap justify-start gap-2.5 mb-12">
+          <button
+            onClick={() => setActiveCategory("all")}
+            className={cn(
+              "px-5 py-2.5 rounded-full text-xs font-bold transition-all border cursor-pointer",
+              activeCategory === "all"
+                ? "bg-primary text-primary-foreground border-primary shadow-elegant"
+                : "bg-card border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Tất cả món ăn
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.name)}
+              className={cn(
+                "px-5 py-2.5 rounded-full text-xs font-bold transition-all border cursor-pointer",
+                activeCategory.toLowerCase() === cat.name.toLowerCase()
+                  ? "bg-primary text-primary-foreground border-primary shadow-elegant"
+                  : "bg-card border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {cat.name}
+            </button>
+          ))}
         </div>
 
         {menuLoading ? (
@@ -198,7 +249,7 @@ function EntrancePortal() {
                 <div className="p-6 flex-1 flex flex-col justify-between space-y-4 font-sans">
                   <div className="space-y-2">
                     <span className="text-[10px] font-bold text-secondary uppercase tracking-widest block">
-                      {item.category}
+                      {item.categoryName || item.category}
                     </span>
                     <h3 className="font-display text-xl text-foreground group-hover:text-primary transition-colors">
                       {item.name}
@@ -238,7 +289,7 @@ function EntrancePortal() {
                 ấm cúng, âm nhạc nhẹ nhàng và dịch vụ chăm sóc khách hàng xuất sắc nhất.
               </p>
               <p className="text-sm text-foreground/80 font-sans font-light leading-relaxed">
-                Áp dụng giải pháp QR Ordering giúp quy trình phục vụ diễn ra chuẩn xác, nhanh chóng, 
+                Áp dụng giải pháp QR Ordering giúp quy trình phục vụ diễn ra chuẩn xác, nhanh chóng,
                 đảm bảo món ăn của bạn luôn nóng hổi trực tiếp từ bếp của chúng tôi.
               </p>
 
@@ -328,8 +379,8 @@ function EntrancePortal() {
               Nguyên liệu <span className="italic text-primary">Tươi ngon</span> mỗi ngày
             </h3>
             <p className="text-sm text-foreground/80 font-sans font-light leading-relaxed">
-              Chúng tôi cam kết sử dụng nguồn nguyên liệu sạch, tươi ngon tự nhiên được tuyển chọn khắt 
-              khe từ các trang trại hữu cơ uy tín địa phương. Không chất bảo quản, giữ trọn dưỡng chất 
+              Chúng tôi cam kết sử dụng nguồn nguyên liệu sạch, tươi ngon tự nhiên được tuyển chọn khắt
+              khe từ các trang trại hữu cơ uy tín địa phương. Không chất bảo quản, giữ trọn dưỡng chất
               và hương vị tự nhiên của món ăn.
             </p>
           </div>
@@ -352,8 +403,8 @@ function EntrancePortal() {
               Tiện nghi vượt trội với <span className="italic text-primary">QR Ordering</span>
             </h3>
             <p className="text-sm text-foreground/80 font-sans font-light leading-relaxed">
-              Chỉ cần quét mã QR tại bàn, bạn có thể dễ dàng gọi món và thanh toán không tiếp xúc ngay 
-              trên điện thoại của mình. Không gian ẩm thực luxury kết hợp công nghệ giúp bạn tận hưởng 
+              Chỉ cần quét mã QR tại bàn, bạn có thể dễ dàng gọi món và thanh toán không tiếp xúc ngay
+              trên điện thoại của mình. Không gian ẩm thực luxury kết hợp công nghệ giúp bạn tận hưởng
               sự riêng tư tối đa và giảm thiểu thời gian chờ đợi.
             </p>
           </div>
@@ -436,7 +487,7 @@ function EntrancePortal() {
             Đặt bàn để có một <span className="italic text-primary-foreground">Vị trí đẹp</span>
           </h2>
           <p className="text-sm text-primary-foreground/75 font-sans font-light max-w-xl mx-auto leading-relaxed">
-            Đảm bảo một không gian riêng tư và tầm nhìn đẹp nhất bằng cách đặt bàn trực tuyến trước. 
+            Đảm bảo một không gian riêng tư và tầm nhìn đẹp nhất bằng cách đặt bàn trực tuyến trước.
             Mã đặt bàn sẽ được xác nhận lập tức và giữ chỗ miễn phí tối đa trong vòng 10 phút.
           </p>
           <Button
@@ -563,7 +614,7 @@ function EntrancePortal() {
                 Thông tin <span className="italic text-primary">Liên hệ</span>
               </h2>
               <p className="text-sm text-muted-foreground font-sans font-light leading-relaxed">
-                Nằm ngay trung tâm Quận 1 sầm uất, Chill Club là điểm dừng chân lý tưởng cho những 
+                Nằm ngay trung tâm Quận 1 sầm uất, Chill Club là điểm dừng chân lý tưởng cho những
                 buổi gặp gỡ đối tác, tụ họp gia đình hay liên hoan bạn bè thân mật.
               </p>
             </div>
@@ -595,7 +646,7 @@ function EntrancePortal() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-muted-foreground uppercase font-bold">Địa chỉ</span>
-                  <span className="text-sm font-bold text-foreground">Quận 1, TP. Hồ Chí Minh</span>
+                  <span className="text-sm font-bold text-foreground">Hoàn Kiếm, Hà Nội</span>
                 </div>
               </div>
 
@@ -614,7 +665,7 @@ function EntrancePortal() {
           {/* Interactive Google Map Mockup */}
           <div className="reveal aspect-[16/10] rounded-2xl overflow-hidden border border-border shadow-soft bg-muted" style={{ transitionDelay: "200ms" }}>
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.424167301072!2d106.7001476!3d10.7765343!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f4161a0a5b1%3A0x7d6f5fbf7eef9f24!2zUXXhuq1uIDEsIFRow6BuaCBwaOG7kSBI4buTIENow60gTWluaA!5e0!3m2!1svi!2svn!4v1700000000000!5m2!1svi!2svn"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3724.1130635391297!2d105.8501256!3d21.028043!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3135ab9564f26b5d%3A0x6b783350289725f8!2zSG_DoG4gS2nhur9tLCBIw6AgTuG7mWk!5e0!3m2!1svi!2svn!4v1700000000000!5m2!1svi!2svn"
               width="100%"
               height="100%"
               style={{ border: 0 }}
@@ -640,7 +691,6 @@ function EntrancePortal() {
                 {selectedArticle.createdAt
                   ? new Date(selectedArticle.createdAt).toLocaleDateString("vi-VN")
                   : "Khuyến mãi"}
-                {selectedArticle.author && ` · Tác giả: ${selectedArticle.author}`}
               </DialogDescription>
 
               <div className="mt-5 space-y-5">

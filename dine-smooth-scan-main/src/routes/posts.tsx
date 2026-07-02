@@ -127,10 +127,6 @@ function PublicPostsList() {
                         <span>
                           {art.createdAt ? new Date(art.createdAt).toLocaleDateString("vi-VN") : "Just now"}
                         </span>
-                        <span>·</span>
-                        <span>
-                          Tác giả: {art.author || "Ban biên tập"}
-                        </span>
                       </div>
                       <h3 className="font-display font-bold text-base leading-snug group-hover:text-primary transition-colors line-clamp-2">
                         {art.title}
@@ -198,7 +194,6 @@ function PublicPostsList() {
               </DialogTitle>
               <DialogDescription className="text-xs text-primary font-bold mt-1 uppercase">
                 Ngày đăng: {selectedArticle.createdAt ? new Date(selectedArticle.createdAt).toLocaleDateString("vi-VN") : "Khuyến mãi"}
-                {selectedArticle.author && ` · Người viết: ${selectedArticle.author}`}
               </DialogDescription>
 
               <div className="mt-5 space-y-5">
